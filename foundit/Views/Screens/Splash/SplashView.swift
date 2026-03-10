@@ -8,6 +8,7 @@
 import SwiftUI
 
 struct SplashView: View {
+    @State private var goToOnboarding = false
     var body: some View {
         ZStack {
             Color(FounditColors.primary)
@@ -31,6 +32,7 @@ struct SplashView: View {
                 Spacer()
 
                 Button {
+                    goToOnboarding = true
                 } label: {
                     Text("GET STARTED")
                         .font(.system(size: 17, weight: .bold))
@@ -42,9 +44,13 @@ struct SplashView: View {
                 }
                 .padding(.horizontal, 36)
                 .padding(.bottom, 60)
+                NavigationLink("", destination: OnboardingView(), isActive: $goToOnboarding)
+                                    .hidden()
             }
-        }
+        }.navigationBarBackButtonHidden(true)
+
     }
+    
 }
 
 #Preview {
