@@ -9,7 +9,41 @@ import SwiftUI
 
 struct SplashView: View {
     var body: some View {
-        Text(/*@START_MENU_TOKEN@*/"Hello, World!"/*@END_MENU_TOKEN@*/)
+        ZStack {
+            Color(FounditColors.primary)
+                .ignoresSafeArea()
+
+            VStack(spacing: 0) {
+                Spacer()
+                    .frame(height: 180)
+
+                Image("logo-white")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 170, height: 170)
+
+                Text("Welcome To\nFoundIt")
+                    .font(.system(size: 24, weight: .bold))
+                    .multilineTextAlignment(.center)
+                    .foregroundColor(.black)
+                    .padding(.top, 24)
+
+                Spacer()
+
+                Button {
+                } label: {
+                    Text("GET STARTED")
+                        .font(.system(size: 17, weight: .bold))
+                        .foregroundColor(.black)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 54)
+                        .background(Color.white)
+                        .cornerRadius(14)
+                }
+                .padding(.horizontal, 36)
+                .padding(.bottom, 60)
+            }
+        }
     }
 }
 
