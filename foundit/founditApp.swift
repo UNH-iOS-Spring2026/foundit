@@ -11,7 +11,7 @@ import SwiftUI
 struct founditApp: App {
     var body: some Scene {
         WindowGroup {
-            MainTabView()
+            RootView()
         }
     }
 }
