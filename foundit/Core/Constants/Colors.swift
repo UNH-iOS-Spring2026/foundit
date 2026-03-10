@@ -11,4 +11,5 @@ class FounditColors {
     static let primary = "PrimaryColor"
 }
 
+
 // Use it like Color(FounditColors.primary)
