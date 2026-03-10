@@ -9,7 +9,14 @@ import SwiftUI
 
 struct LoginView: View {
     var body: some View {
-        Text(/*@START_MENU_TOKEN@*/"Hello, World!"/*@END_MENU_TOKEN@*/)
+        VStack {
+            Text("Login Screen")
+                .font(.title)
+
+            NavigationLink("Go to Home", destination: HomeView())
+                .padding()
+        }
+        .navigationTitle("Login")
     }
 }
 
