@@ -12,8 +12,6 @@ struct LoginView: View {
         VStack {
             Text("Login Screen")
                 .font(.title)
-
-            NavigationLink("Go to Home", destination: HomeView())
                 .padding()
         }
         .navigationTitle("Login")
