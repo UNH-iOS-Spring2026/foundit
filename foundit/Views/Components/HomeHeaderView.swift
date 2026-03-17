@@ -83,10 +83,7 @@ struct HomeHeaderView: View {
         .padding(.horizontal, 16)
         .padding(.top, 12)
         .padding(.bottom, 20)
-        .background(Color(red: 0.55, green: 0.60, blue: 0.85))   // periwinkle blue
+        .background(Color(FounditColors.primary))
     }
     
-}
-#Preview {
-//    HomeHeaderView()
 }
