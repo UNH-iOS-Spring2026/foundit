@@ -6,6 +6,8 @@
 //
 
 import Foundation
+internal import Combine
 
-final class HomeViewModel{}
+final class HomeViewModel{
+}
 
