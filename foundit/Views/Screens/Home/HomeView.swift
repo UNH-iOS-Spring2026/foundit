@@ -8,10 +8,17 @@
 import SwiftUI
 
 struct HomeView: View {
+    private var viewModel = HomeViewModel()
+
+
     var body: some View {
-        Text("Home Screen")
-            .font(.title)
-            .navigationTitle("Home")
+        NavigationStack {
+            VStack {
+                // MARK: Header
+                HomeHeaderView(userName: "Divya", userEmail: "divya.panthi03@gmail.com", hasNotification: true)
+                Spacer()
+            }
+        }
     }
 }
 
