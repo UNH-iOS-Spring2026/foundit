@@ -7,7 +7,7 @@
 import SwiftUI
 import PhotosUI
 
-// MARK: - AddReportView
+// MARK: - PostItemView
 struct PostItemView: View {
     
     @State private var selectedStatus: ItemStatus? = nil
@@ -21,7 +21,8 @@ struct PostItemView: View {
     @State private var mobileNumber: String = ""
     @State private var location: String = ""
     @State private var hideContactDetails: Bool = false
-    
+    @State private var showLocationPicker: Bool = false
+    @State private var selectedCoordinate: CLLocationCoordinate2D? = nil
     
     
     let categories = ["Books", "Electronics", "Accessories", "Clothing", "Keys", "Wallet", "Other"]
@@ -217,48 +218,57 @@ struct PostItemView: View {
                 
                 FormSectionLabel(title: "Location")
                 HStack {
-                      TextField("", text: $location)
-                          .font(.system(size: 16))
-                      Spacer()
-                      Image(systemName: "mappin.circle.fill")
-                          .font(.system(size: 20))
-                          .foregroundStyle(.pink)
-                  }
-                  .padding(.horizontal, 16)
-                  .padding(.vertical, 16)
-                  .background(Color(.systemBackground))
-                  .clipShape(RoundedRectangle(cornerRadius: 14))
-                  .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
-                
+                    TextField("", text: $location)
+                        .font(.system(size: 16))
+                    Spacer()
+                    Button {
+                        showLocationPicker = true
+                    } label: {
+                        Image(systemName: "mappin.circle.fill")
+                            .font(.system(size: 20))
+                            .foregroundStyle(.pink)
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 16)
+                .background(Color(.systemBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 14))
+                .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
+                .sheet(isPresented: $showLocationPicker) {
+                    LocationPickerView(
+                        selectedCoordinate: $selectedCoordinate,
+                        locationText: $location
+                    )
+                }
                 Button {
-                     hideContactDetails.toggle()
-                 } label: {
-                     HStack(spacing: 12) {
-                         ZStack {
-                             RoundedRectangle(cornerRadius: 5)
-                                 .stroke(
-                                     hideContactDetails
-                                         ? Color(red: 0.55, green: 0.60, blue: 0.85)
-                                         : Color(.systemGray3),
-                                     lineWidth: 2
-                                 )
-                                 .frame(width: 22, height: 22)
-  
-                             if hideContactDetails {
-                                 RoundedRectangle(cornerRadius: 3)
-                                     .fill(Color(red: 0.55, green: 0.60, blue: 0.85))
-                                     .frame(width: 13, height: 13)
-                             }
-                         }
-  
-                         Text("Hide my contact details (Only allow chat)")
-                             .font(.system(size: 14))
-                             .foregroundStyle(.primary)
-  
-                         Spacer()
-                     }
-                 }
-                 .buttonStyle(.plain)
+                    hideContactDetails.toggle()
+                } label: {
+                    HStack(spacing: 12) {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 5)
+                                .stroke(
+                                    hideContactDetails
+                                    ? Color(red: 0.55, green: 0.60, blue: 0.85)
+                                    : Color(.systemGray3),
+                                    lineWidth: 2
+                                )
+                                .frame(width: 22, height: 22)
+                            
+                            if hideContactDetails {
+                                RoundedRectangle(cornerRadius: 3)
+                                    .fill(Color(red: 0.55, green: 0.60, blue: 0.85))
+                                    .frame(width: 13, height: 13)
+                            }
+                        }
+                        
+                        Text("Hide my contact details (Only allow chat)")
+                            .font(.system(size: 14))
+                            .foregroundStyle(.primary)
+                        
+                        Spacer()
+                    }
+                }
+                .buttonStyle(.plain)
                 
                 VStack(spacing: 12) {
                     Button {
@@ -272,7 +282,7 @@ struct PostItemView: View {
                             .background(Color(red: 0.55, green: 0.60, blue: 0.85))
                             .clipShape(RoundedRectangle(cornerRadius: 14))
                     }
- 
+                    
                     Button {
                         // TODO: dismiss
                     } label: {
@@ -286,7 +296,7 @@ struct PostItemView: View {
                     }
                 }
                 .padding(.top, 8)
-
+                
             }
             
         }
@@ -296,7 +306,7 @@ struct PostItemView: View {
         
         .navigationTitle("Report Lost or Found Item")
         .navigationBarTitleDisplayMode(.inline)
-//        .background(Color(.systemGroupedBackground))
+        //        .background(Color(.systemGroupedBackground))
     }
 }
 
