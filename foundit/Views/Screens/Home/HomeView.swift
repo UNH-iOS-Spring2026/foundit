@@ -71,7 +71,7 @@ struct HomeView: View {
                         LazyVGrid(columns: columns, spacing: 12) {
                             ForEach(viewModel.filteredItems) { item in
                                 NavigationLink {
-                                    Text(item.title)
+                                    PostDetailView(item: viewModel.items[0])
                                 } label: {
                                     ItemCardView(item: item)
                                 }

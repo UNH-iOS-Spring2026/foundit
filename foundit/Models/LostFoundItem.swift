@@ -48,6 +48,9 @@ struct LostFoundItem: Identifiable {
     let status: ItemStatus
     let date: Date
     let location: String
+    let category: String
+    let reportedBy: Reporter
+    let coordinate: ItemCoordinate
  
     init(
         id: UUID = UUID(),
@@ -58,7 +61,11 @@ struct LostFoundItem: Identifiable {
         imageURL: URL? = nil,
         status: ItemStatus,
         date: Date,
-        location: String
+        location: String,
+        category: String = "General",
+        reportedBy: Reporter = Reporter(name: "Unknown", avatarName: ""),
+        coordinate: ItemCoordinate = ItemCoordinate(latitude: 41.3083, longitude: -72.9279)
+        
     ) {
         self.id = id
         self.title = title
@@ -69,6 +76,10 @@ struct LostFoundItem: Identifiable {
         self.status = status
         self.date = date
         self.location = location
+        self.category = category
+        self.reportedBy = reportedBy
+        self.coordinate = coordinate
+        
     }
 }
 
@@ -78,6 +89,13 @@ extension LostFoundItem {
         formatter.dateFormat = "MMM d, yyyy"
         return formatter.string(from: date)
     }
+    
+    var formattedTime: String {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "hh:mma"
+            return formatter.string(from: date)
+        }
+    
 }
 
 
@@ -87,9 +105,12 @@ extension LostFoundItem {
             title: "iPhone Charger",
             description: "White Apple USB-C charger with cable.",
             imageName: "charger",
+            images: ["charger", "glasses"],
             status: .lost,
             date: DateComponents(calendar: .current, year: 2026, month: 1, day: 11).date ?? Date(),
-            location: "Maxcy Hall"
+            location: "Maxcy Hall",
+            reportedBy: Reporter(name: "Divya", avatarName: "profile"),
+            coordinate: ItemCoordinate(latitude: 41.3083, longitude: -72.9279)
         ),
         LostFoundItem(
             title: "Black Earphones",
