@@ -10,23 +10,16 @@ import SwiftUI
 struct CustomTextField: View {
 	@Binding var text: String
 	let placeholder: String
-	let isSecure: Bool
 
 	var body: some View {
-		Group {
-			if isSecure {
-				SecureField(placeholder, text: $text)
-			} else {
-				TextField(placeholder, text: $text)
-			}
-		}
-		.font(.system(size: 16))
-		.padding(.horizontal, 16)
-		.frame(height: 50)
-		.background(Color(.systemGray6))
-		.clipShape(RoundedRectangle(cornerRadius: 12))
-		.autocorrectionDisabled(true)
-		.textInputAutocapitalization(.never)
+		TextField(placeholder, text: $text)
+			.font(.system(size: 16))
+			.padding(.horizontal, 16)
+			.frame(height: 50)
+			.background(Color(.systemGray6))
+			.clipShape(RoundedRectangle(cornerRadius: 12))
+			.autocorrectionDisabled(true)
+			.textInputAutocapitalization(.never)
 	}
 }
 
@@ -46,9 +39,9 @@ struct CustomSecureField: View {
 			}
 			.font(.system(size: 16))
 
-			Button(action: {
+			Button {
 				showPassword.toggle()
-			}) {
+			} label: {
 				Image(systemName: showPassword ? "eye.slash" : "eye")
 					.foregroundColor(.black.opacity(0.7))
 			}
