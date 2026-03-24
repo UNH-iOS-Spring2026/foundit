@@ -10,6 +10,8 @@ import SwiftUI
 struct HomeView: View {
     @StateObject private var viewModel = HomeViewModel()
     @Binding var searchText: String
+    @State private var navigateToReport: Bool = false
+
     
     private let columns = [
         GridItem(.flexible(), spacing: 12),
@@ -24,7 +26,9 @@ struct HomeView: View {
                     userName: "Divya",
                     userEmail: "divya.panthi03@gmail.com",
                     hasNotification: true,
-                    onPost: {//Navigate to Add Post Screen
+                    onPost: {
+                        navigateToReport = true
+                        
                     })
                 // MARK: Search + Filter
                 HStack(spacing: 10){
@@ -85,6 +89,8 @@ struct HomeView: View {
                 }
                 Spacer()
             }
+        }.navigationDestination(isPresented: $navigateToReport) {
+            PostItemView()
         }
     }
 }
