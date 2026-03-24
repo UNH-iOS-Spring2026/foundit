@@ -147,6 +147,43 @@ struct PostDetailView: View {
                 .padding(.horizontal, 16)
                 .padding(.top, 20)
                 
+                Button {
+                       // TODO: handle action
+                   } label: {
+                       Text("Take Action")
+                           .font(.system(size: 16, weight: .semibold))
+                           .foregroundStyle(.white)
+                           .frame(maxWidth: .infinity)
+                           .padding(.vertical, 16)
+                           .background(Color(red: 0.55, green: 0.60, blue: 0.85))
+                           .clipShape(RoundedRectangle(cornerRadius: 14))
+                   }
+                   .padding(.horizontal, 16)
+                   .padding(.top, 24)
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Similar Items")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(.primary)
+                        .padding(.horizontal, 16)
+ 
+                    LazyVGrid(columns: [
+                        GridItem(.flexible(), spacing: 12),
+                        GridItem(.flexible(), spacing: 12)
+                    ], spacing: 12) {
+                        ForEach(LostFoundItem.mockItems) { similarItem in
+                            NavigationLink {
+                                PostDetailView(item: similarItem)
+                            } label: {
+                                ItemCardView(item: similarItem)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                }
+                .padding(.top, 24)
+                .padding(.bottom, 32)
+                
             }
         }
         .navigationTitle("Report Details")
