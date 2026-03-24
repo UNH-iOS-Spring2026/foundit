@@ -19,12 +19,31 @@ enum ItemStatus {
         }
     }
 }
+
+// MARK: Reporter
+struct Reporter: Identifiable {
+    let id: UUID
+    let name: String
+    let avatarName: String        // Asset catalog image name
  
+    init(id: UUID = UUID(), name: String, avatarName: String) {
+        self.id = id
+        self.name = name
+        self.avatarName = avatarName
+    }
+}
+
+struct ItemCoordinate {
+    let latitude: Double
+    let longitude: Double
+}
+
 struct LostFoundItem: Identifiable {
     let id: UUID
     let title: String
     let description: String
     let imageName: String
+    let images: [String]  // multiple images used in post detail
     let imageURL: URL?
     let status: ItemStatus
     let date: Date
@@ -35,6 +54,7 @@ struct LostFoundItem: Identifiable {
         title: String,
         description: String,
         imageName: String,
+        images: [String] = [],
         imageURL: URL? = nil,
         status: ItemStatus,
         date: Date,
@@ -44,6 +64,7 @@ struct LostFoundItem: Identifiable {
         self.title = title
         self.description = description
         self.imageName = imageName
+        self.images = images.isEmpty ? [imageName] : images
         self.imageURL = imageURL
         self.status = status
         self.date = date
