@@ -9,6 +9,7 @@ import SwiftUI
 
 struct ProfileScreen: View {
     @State private var pushNotificationsEnabled = true
+    @State private var showLogoutAlert = false
 
     var body: some View {
         NavigationStack {
@@ -20,11 +21,13 @@ struct ProfileScreen: View {
                         .frame(width: 80, height: 80)
                         .foregroundColor(.gray)
 
-                    Text("Frank Sinatra")
+                    // TODO: Teammate — replace with authViewModel.currentUser?.displayName
+                    Text("Dev User")
                         .font(.title2)
                         .fontWeight(.semibold)
 
-                    Text("franksinatra@unh.newhaven.edu")
+                    // TODO: Teammate — replace with authViewModel.currentUser?.email
+                    Text("dev@placeholder.com")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }
@@ -54,7 +57,8 @@ struct ProfileScreen: View {
 
                     // Logout
                     Button(action: {
-                        // TODO: Handle logout
+                        // TODO: Teammate — call authViewModel.signOut()
+                        showLogoutAlert = true
                     }) {
                         HStack {
                             Image(systemName: "rectangle.portrait.and.arrow.right")
@@ -73,6 +77,11 @@ struct ProfileScreen: View {
             }
             .navigationTitle("Profile")
             .navigationBarTitleDisplayMode(.inline)
+            .alert("Logout", isPresented: $showLogoutAlert) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("Auth not implemented yet. Your teammate will wire this up.")
+            }
         }
     }
 }

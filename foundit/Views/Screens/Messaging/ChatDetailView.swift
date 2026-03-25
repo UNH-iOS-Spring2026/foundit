@@ -1,36 +1,30 @@
+//
+//  ChatDetailView.swift
+//  foundit
+//
+
 import SwiftUI
 
 struct ChatDetailView: View {
+    let chatId: String
     let contactName: String
-    @State var messages: [ChatMessage]
+    @EnvironmentObject var chatViewModel: ChatViewModel
     @State private var draftText: String = ""
 
     var body: some View {
         VStack(spacing: 0) {
-            // Messages list
             ScrollViewReader { proxy in
                 ScrollView {
                     VStack(alignment: .leading, spacing: 12) {
-                        ForEach(messages) { message in
-                            if message.isImage {
-                                // Image placeholder bubble (received)
-                                HStack(alignment: .bottom) {
-                                    bubble(content: AnyView(
-                                        RoundedRectangle(cornerRadius: 12)
-                                            .fill(Color.gray.opacity(0.2))
-                                            .frame(width: 220, height: 140)
-                                    ), isFromUser: false)
+                        ForEach(chatViewModel.messages) { message in
+                            let isFromUser = message.senderId == AppConfig.placeholderUserId
+                            HStack(alignment: .bottom) {
+                                if isFromUser {
                                     Spacer(minLength: 40)
-                                }
-                            } else if let text = message.text {
-                                HStack(alignment: .bottom) {
-                                    if message.isFromUser {
-                                        Spacer(minLength: 40)
-                                        bubble(content: AnyView(Text(text).foregroundStyle(.primary)), isFromUser: true)
-                                    } else {
-                                        bubble(content: AnyView(Text(text).foregroundStyle(.primary)), isFromUser: false)
-                                        Spacer(minLength: 40)
-                                    }
+                                    bubble(content: AnyView(Text(message.text).foregroundStyle(.primary)), isFromUser: true)
+                                } else {
+                                    bubble(content: AnyView(Text(message.text).foregroundStyle(.primary)), isFromUser: false)
+                                    Spacer(minLength: 40)
                                 }
                             }
                         }
@@ -42,7 +36,6 @@ struct ChatDetailView: View {
 
             Divider()
 
-            // Input bar
             HStack(spacing: 8) {
                 TextField("Type message here....", text: $draftText, axis: .vertical)
                     .textFieldStyle(.roundedBorder)
@@ -60,6 +53,12 @@ struct ChatDetailView: View {
         }
         .navigationTitle(contactName)
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            chatViewModel.listenToMessages(chatId: chatId)
+        }
+        .onDisappear {
+            chatViewModel.stopListening()
+        }
     }
 
     @ViewBuilder
@@ -73,14 +72,16 @@ struct ChatDetailView: View {
     private func sendMessage() {
         let trimmed = draftText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
-        let new = ChatMessage(id: UUID(), text: trimmed, isFromUser: true, isImage: false)
-        messages.append(new)
+        Task {
+            await chatViewModel.sendMessage(chatId: chatId, text: trimmed)
+        }
         draftText = ""
     }
 }
 
 #Preview {
     NavigationStack {
-        ChatDetailView(contactName: "Campus Police", messages: sampleMessages)
+        ChatDetailView(chatId: "test", contactName: "Campus Police")
+            .environmentObject(ChatViewModel())
     }
 }

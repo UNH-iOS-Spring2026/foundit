@@ -8,6 +8,9 @@
 import SwiftUI
 
 struct MainTabView: View {
+    @StateObject private var postViewModel = PostViewModel()
+    @StateObject private var chatViewModel = ChatViewModel()
+
     var body: some View {
         TabView {
             HomeView()
@@ -34,6 +37,8 @@ struct MainTabView: View {
                     Text("Profile")
                 }
         }
+        .environmentObject(postViewModel)
+        .environmentObject(chatViewModel)
     }
 }
 
