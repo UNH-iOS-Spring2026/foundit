@@ -8,7 +8,7 @@
 import Foundation
 
 class FounditColors {
-    static let primary = "PrimaryColor"
+    static let primary = "AppPrimary"
 }
 
 

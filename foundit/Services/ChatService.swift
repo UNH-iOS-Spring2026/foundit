@@ -49,12 +49,17 @@ class ChatService {
             .collection("messages")
             .order(by: "sentAt", descending: false)
 
-        return query.snapshotPublisher()
-            .map { snapshot in
-                snapshot.documents.compactMap { doc in
+        let subject = PassthroughSubject<[Message], Error>()
+        query.addSnapshotListener { snapshot, error in
+            if let error = error {
+                subject.send(completion: .failure(error))
+            } else if let snapshot = snapshot {
+                let messages = snapshot.documents.compactMap { doc in
                     try? doc.data(as: Message.self)
                 }
+                subject.send(messages)
             }
-            .eraseToAnyPublisher()
+        }
+        return subject.eraseToAnyPublisher()
     }
 }
