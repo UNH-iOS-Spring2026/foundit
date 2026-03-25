@@ -9,9 +9,9 @@ import SwiftUI
 
 struct RootView: View {
     var body: some View {
-        NavigationStack {
-            MainTabView()
-        }
+        // TODO: Teammate — add auth gating here:
+        // if authViewModel.userSession != nil { MainTabView() } else { SplashView() }
+        MainTabView()
     }
 }
 
