@@ -16,6 +16,7 @@ struct OnboardingPage: Identifiable {
 }
 
 struct OnboardingView: View {
+	@EnvironmentObject var authVM: AuthViewModel
 	@State private var currentPage = 0
 	@State private var goToLogin = false
 
@@ -33,7 +34,7 @@ struct OnboardingView: View {
 		OnboardingPage(
 			imageName: "onboarding3",
 			title: "Securely Connect & Reclaim",
-			description: "Chat, verify ownership, and coordinate safe returns with real-time chat, and ID."
+			description: "Chat, verify ownership, and coordinate safe returns."
 		)
 	]
 
@@ -52,17 +53,11 @@ struct OnboardingView: View {
 
 					VStack(alignment: .leading, spacing: 0) {
 						topSection
-
 						Spacer().frame(height: 20)
-
 						imageSection
-
 						Spacer().frame(height: 28)
-
 						textSection
-
 						Spacer()
-
 						nextButton
 					}
 					.padding(.horizontal, 24)
@@ -75,7 +70,7 @@ struct OnboardingView: View {
 			}
 
 			NavigationLink(
-				destination: LoginView(),
+				destination: LoginView().environmentObject(authVM),
 				isActive: $goToLogin
 			) {
 				EmptyView()
@@ -93,7 +88,6 @@ struct OnboardingView: View {
 				}
 			} label: {
 				Image(systemName: "chevron.left")
-					.font(.system(size: 14, weight: .medium))
 					.foregroundColor(.black.opacity(currentPage == 0 ? 0.3 : 0.8))
 			}
 			.disabled(currentPage == 0)
@@ -110,9 +104,7 @@ struct OnboardingView: View {
 
 			Spacer()
 
-			
 			Image(systemName: "chevron.left")
-				.font(.system(size: 14, weight: .medium))
 				.opacity(0)
 		}
 	}
@@ -120,12 +112,10 @@ struct OnboardingView: View {
 	private var imageSection: some View {
 		HStack {
 			Spacer()
-
 			Image(pages[currentPage].imageName)
 				.resizable()
 				.scaledToFit()
 				.frame(width: 180, height: 180)
-
 			Spacer()
 		}
 	}
@@ -165,5 +155,6 @@ struct OnboardingView: View {
 #Preview {
 	NavigationStack {
 		OnboardingView()
+			.environmentObject(AuthViewModel())
 	}
 }

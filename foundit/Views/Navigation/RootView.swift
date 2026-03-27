@@ -13,7 +13,7 @@ struct RootView: View {
 	var body: some View {
 		Group {
 			if authVM.isAuthenticated {
-				Text("Logged In")
+				MainTabView()
 					.environmentObject(authVM)
 			} else {
 				SplashView()

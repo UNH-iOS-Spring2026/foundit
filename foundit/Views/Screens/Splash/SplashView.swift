@@ -8,51 +8,60 @@
 import SwiftUI
 
 struct SplashView: View {
-    @State private var goToOnboarding = false
-    var body: some View {
-        ZStack {
-            Color(FounditColors.primary)
-                .ignoresSafeArea()
+	@EnvironmentObject var authVM: AuthViewModel
+	@State private var goToOnboarding = false
 
-            VStack(spacing: 0) {
-                Spacer()
-                    .frame(height: 180)
+	var body: some View {
+		ZStack {
+			Color(FounditColors.primary)
+				.ignoresSafeArea()
 
-                Image("logo-white")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 170, height: 170)
+			VStack(spacing: 0) {
+				Spacer()
+					.frame(height: 180)
 
-                Text("Welcome To\nFoundIt")
-                    .font(.system(size: 24, weight: .bold))
-                    .multilineTextAlignment(.center)
-                    .foregroundColor(.black)
-                    .padding(.top, 24)
+				Image("logo-white")
+					.resizable()
+					.scaledToFit()
+					.frame(width: 170, height: 170)
 
-                Spacer()
+				Text("Welcome To\nFoundIt")
+					.font(.system(size: 24, weight: .bold))
+					.multilineTextAlignment(.center)
+					.foregroundColor(.black)
+					.padding(.top, 24)
 
-                Button {
-                    goToOnboarding = true
-                } label: {
-                    Text("GET STARTED")
-                        .font(.system(size: 17, weight: .bold))
-                        .foregroundColor(.black)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 54)
-                        .background(Color.white)
-                        .cornerRadius(14)
-                }
-                .padding(.horizontal, 36)
-                .padding(.bottom, 60)
-                NavigationLink("", destination: OnboardingView(), isActive: $goToOnboarding)
-                                    .hidden()
-            }
-        }.navigationBarBackButtonHidden(true)
+				Spacer()
 
-    }
-    
+				Button {
+					goToOnboarding = true
+				} label: {
+					Text("GET STARTED")
+						.font(.system(size: 17, weight: .bold))
+						.foregroundColor(.black)
+						.frame(maxWidth: .infinity)
+						.frame(height: 54)
+						.background(Color.white)
+						.cornerRadius(14)
+				}
+				.padding(.horizontal, 36)
+				.padding(.bottom, 60)
+
+				NavigationLink(
+					"",
+					destination: OnboardingView().environmentObject(authVM),
+					isActive: $goToOnboarding
+				)
+				.hidden()
+			}
+		}
+		.navigationBarBackButtonHidden(true)
+	}
 }
 
 #Preview {
-    SplashView()
+	NavigationStack {
+		SplashView()
+			.environmentObject(AuthViewModel())
+	}
 }
