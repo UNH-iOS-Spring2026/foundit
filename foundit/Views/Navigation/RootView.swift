@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct RootView: View {
-	@StateObject private var authVM: AuthViewModel = AuthViewModel()
+	@StateObject private var authVM = AuthViewModel()
 
 	var body: some View {
 		Group {
@@ -16,8 +16,10 @@ struct RootView: View {
 				MainTabView()
 					.environmentObject(authVM)
 			} else {
-				SplashView()
-					.environmentObject(authVM)
+				NavigationStack {
+					SplashView()
+				}
+				.environmentObject(authVM)
 			}
 		}
 	}

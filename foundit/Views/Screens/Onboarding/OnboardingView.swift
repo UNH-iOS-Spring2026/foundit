@@ -2,8 +2,8 @@
 //  OnboardingView.swift
 //  foundit
 //
-//	Source of inspiration for UI: ChatGPT (OpenAI)
-//  Created by Ashish Khadka on 16/03/2026.
+//  Source of inspiration for UI: ChatGPT (OpenAI)
+//  Updated by Ashish Khadka on 16/03/2026.
 //
 
 import SwiftUI
@@ -16,7 +16,6 @@ struct OnboardingPage: Identifiable {
 }
 
 struct OnboardingView: View {
-	@EnvironmentObject var authVM: AuthViewModel
 	@State private var currentPage = 0
 	@State private var goToLogin = false
 
@@ -29,12 +28,12 @@ struct OnboardingView: View {
 		OnboardingPage(
 			imageName: "onboarding2",
 			title: "Smart Matches, Real-Time Alerts",
-			description: "As your item details similar listings and notifies you instantly when there's a possible match."
+			description: "Scan item details, discover similar listings, and get notified instantly when there is a possible match."
 		),
 		OnboardingPage(
 			imageName: "onboarding3",
 			title: "Securely Connect & Reclaim",
-			description: "Chat, verify ownership, and coordinate safe returns."
+			description: "Chat, verify ownership, and coordinate safe returns with real-time messaging and identity checks."
 		)
 	]
 
@@ -53,11 +52,17 @@ struct OnboardingView: View {
 
 					VStack(alignment: .leading, spacing: 0) {
 						topSection
+
 						Spacer().frame(height: 20)
+
 						imageSection
+
 						Spacer().frame(height: 28)
+
 						textSection
+
 						Spacer()
+
 						nextButton
 					}
 					.padding(.horizontal, 24)
@@ -70,7 +75,7 @@ struct OnboardingView: View {
 			}
 
 			NavigationLink(
-				destination: LoginView().environmentObject(authVM),
+				destination: LoginView(),
 				isActive: $goToLogin
 			) {
 				EmptyView()
@@ -88,6 +93,7 @@ struct OnboardingView: View {
 				}
 			} label: {
 				Image(systemName: "chevron.left")
+					.font(.system(size: 14, weight: .medium))
 					.foregroundColor(.black.opacity(currentPage == 0 ? 0.3 : 0.8))
 			}
 			.disabled(currentPage == 0)
@@ -105,6 +111,7 @@ struct OnboardingView: View {
 			Spacer()
 
 			Image(systemName: "chevron.left")
+				.font(.system(size: 14, weight: .medium))
 				.opacity(0)
 		}
 	}
@@ -112,10 +119,12 @@ struct OnboardingView: View {
 	private var imageSection: some View {
 		HStack {
 			Spacer()
+
 			Image(pages[currentPage].imageName)
 				.resizable()
 				.scaledToFit()
 				.frame(width: 180, height: 180)
+
 			Spacer()
 		}
 	}
@@ -141,7 +150,7 @@ struct OnboardingView: View {
 				goToLogin = true
 			}
 		} label: {
-			Text("NEXT")
+			Text(currentPage == pages.count - 1 ? "GET STARTED" : "NEXT")
 				.font(.system(size: 14, weight: .bold))
 				.foregroundColor(.black)
 				.frame(maxWidth: .infinity)
@@ -155,6 +164,5 @@ struct OnboardingView: View {
 #Preview {
 	NavigationStack {
 		OnboardingView()
-			.environmentObject(AuthViewModel())
 	}
 }
