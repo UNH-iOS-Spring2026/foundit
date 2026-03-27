@@ -3,12 +3,12 @@
 //  foundit
 //
 //  Created by Divya Panthi on 10/03/2026.
+//  Updated by Ashish on 03/26/2026
 //
 
 import SwiftUI
 
 struct SplashView: View {
-	@AppStorage("hasSeenSplash") private var hasSeenSplash = false
 	@State private var goToOnboarding = false
 
 	var body: some View {
@@ -34,7 +34,6 @@ struct SplashView: View {
 				Spacer()
 
 				Button {
-					hasSeenSplash = true
 					goToOnboarding = true
 				} label: {
 					Text("GET STARTED")
