@@ -8,13 +8,21 @@
 import SwiftUI
 
 struct RootView: View {
-    var body: some View {
-        // TODO: Teammate — add auth gating here:
-        // if authViewModel.userSession != nil { MainTabView() } else { SplashView() }
-        MainTabView()
-    }
+	@StateObject private var authVM: AuthViewModel = AuthViewModel()
+
+	var body: some View {
+		Group {
+			if authVM.isAuthenticated {
+				Text("Logged In")
+					.environmentObject(authVM)
+			} else {
+				SplashView()
+					.environmentObject(authVM)
+			}
+		}
+	}
 }
 
 #Preview {
-    RootView()
+	RootView()
 }
