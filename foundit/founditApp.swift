@@ -16,7 +16,7 @@ struct founditApp: App {
 
     var body: some Scene {
         WindowGroup {
-            MainTabView()
+            RootView()
         }
     }
 }
