@@ -8,6 +8,7 @@
 import SwiftUI
 
 struct SplashView: View {
+	@AppStorage("hasSeenSplash") private var hasSeenSplash = false
 	@State private var goToOnboarding = false
 
 	var body: some View {
@@ -33,6 +34,7 @@ struct SplashView: View {
 				Spacer()
 
 				Button {
+					hasSeenSplash = true
 					goToOnboarding = true
 				} label: {
 					Text("GET STARTED")
@@ -65,4 +67,3 @@ struct SplashView: View {
 	}
 	.environmentObject(AuthViewModel())
 }
-

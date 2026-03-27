@@ -9,19 +9,23 @@ import SwiftUI
 
 struct RootView: View {
 	@StateObject private var authVM = AuthViewModel()
+	@AppStorage("hasSeenSplash") private var hasSeenSplash = false
 
 	var body: some View {
 		Group {
 			if authVM.isAuthenticated {
 				MainTabView()
-					.environmentObject(authVM)
+			} else if hasSeenSplash {
+				NavigationStack {
+					LoginView()
+				}
 			} else {
 				NavigationStack {
 					SplashView()
 				}
-				.environmentObject(authVM)
 			}
 		}
+		.environmentObject(authVM)
 	}
 }
 
