@@ -8,7 +8,6 @@
 import SwiftUI
 
 struct SplashView: View {
-	@EnvironmentObject var authVM: AuthViewModel
 	@State private var goToOnboarding = false
 
 	var body: some View {
@@ -48,10 +47,11 @@ struct SplashView: View {
 				.padding(.bottom, 60)
 
 				NavigationLink(
-					"",
-					destination: OnboardingView().environmentObject(authVM),
+					destination: OnboardingView(),
 					isActive: $goToOnboarding
-				)
+				) {
+					EmptyView()
+				}
 				.hidden()
 			}
 		}
@@ -62,6 +62,7 @@ struct SplashView: View {
 #Preview {
 	NavigationStack {
 		SplashView()
-			.environmentObject(AuthViewModel())
 	}
+	.environmentObject(AuthViewModel())
 }
+
