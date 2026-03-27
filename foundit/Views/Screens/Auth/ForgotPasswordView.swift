@@ -10,7 +10,9 @@ import SwiftUI
 
 struct ForgotPasswordView: View {
 	@Environment(\.dismiss) private var dismiss
-	@State private var email = "franksinatra@unh.newhaven.edu"
+	@EnvironmentObject var authVM: AuthViewModel
+
+	@State private var email = ""
 
 	var body: some View {
 		ScrollView {
@@ -18,14 +20,11 @@ struct ForgotPasswordView: View {
 				Spacer().frame(height: 8)
 
 				HStack {
-					Button {
-						dismiss()
-					} label: {
+					Button { dismiss() } label: {
 						Image(systemName: "chevron.left")
 							.font(.system(size: 16, weight: .medium))
 							.foregroundColor(.black)
 					}
-
 					Spacer()
 				}
 				.padding(.horizontal, 24)
@@ -45,7 +44,6 @@ struct ForgotPasswordView: View {
 
 				Text("Forgot Password?")
 					.font(.system(size: 28, weight: .bold))
-					.foregroundColor(.black)
 					.frame(maxWidth: .infinity, alignment: .center)
 
 				Text("Please enter your email and we will help you reset your password")
@@ -66,18 +64,46 @@ struct ForgotPasswordView: View {
 				CustomTextField(text: $email, placeholder: "Email Address")
 					.padding(.horizontal, 28)
 
+				if !authVM.errorMessage.isEmpty {
+					Text(authVM.errorMessage)
+						.font(.system(size: 13))
+						.foregroundColor(.red)
+						.padding(.horizontal, 28)
+						.padding(.top, 10)
+				}
+
+				if !authVM.resetMessage.isEmpty {
+					Text(authVM.resetMessage)
+						.font(.system(size: 13))
+						.foregroundColor(.green)
+						.padding(.horizontal, 28)
+						.padding(.top, 10)
+				}
+
 				Spacer().frame(height: 22)
 
-				NavigationLink(destination: ResetPasswordView()) {
-					Text("Reset Password")
-						.font(.system(size: 17, weight: .bold))
-						.foregroundColor(.black)
-						.frame(maxWidth: .infinity)
-						.frame(height: 54)
-						.background(Color(FounditColors.primary))
-						.clipShape(RoundedRectangle(cornerRadius: 14))
+				Button {
+					Task {
+						await authVM.sendReset(email: email)
+					}
+				} label: {
+					HStack {
+						Spacer()
+						if authVM.isLoading {
+							ProgressView()
+						} else {
+							Text("Reset Password")
+								.font(.system(size: 17, weight: .bold))
+								.foregroundColor(.black)
+						}
+						Spacer()
+					}
+					.frame(height: 54)
+					.background(Color(FounditColors.primary))
+					.clipShape(RoundedRectangle(cornerRadius: 14))
 				}
 				.padding(.horizontal, 28)
+				.disabled(authVM.isLoading)
 
 				Spacer()
 			}
@@ -90,5 +116,6 @@ struct ForgotPasswordView: View {
 #Preview {
 	NavigationStack {
 		ForgotPasswordView()
+			.environmentObject(AuthViewModel())
 	}
 }
