@@ -9,16 +9,11 @@ import SwiftUI
 
 struct RootView: View {
 	@StateObject private var authVM = AuthViewModel()
-	@AppStorage("hasSeenSplash") private var hasSeenSplash = false
 
 	var body: some View {
 		Group {
 			if authVM.isAuthenticated {
 				MainTabView()
-			} else if hasSeenSplash {
-				NavigationStack {
-					LoginView()
-				}
 			} else {
 				NavigationStack {
 					SplashView()
