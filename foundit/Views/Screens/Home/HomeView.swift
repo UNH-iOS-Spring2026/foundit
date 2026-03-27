@@ -9,8 +9,11 @@ import SwiftUI
 
 struct HomeView: View {
     @StateObject private var viewModel = HomeViewModel()
+    @EnvironmentObject var postViewModel: PostViewModel
     @Binding var searchText: String
     @State private var navigateToReport: Bool = false
+    @State private var showFilterSheet: Bool = false
+    @State private var selectedFilter: PostType? = nil
 
     
     private let columns = [
@@ -19,78 +22,227 @@ struct HomeView: View {
     ]
     
     var body: some View {
-        NavigationStack {
-            VStack {
-                // MARK: Header
-                HomeHeaderView(
-                    userName: "Divya",
-                    userEmail: "divya.panthi03@gmail.com",
-                    hasNotification: true,
-                    onPost: {
-                        navigateToReport = true
-                        
-                    })
-                // MARK: Search + Filter
-                HStack(spacing: 10){
-                    HStack {
-                        Image(systemName: "magnifyingglass")
-                            .foregroundStyle(.secondary)
-                        TextField("Search items…", text: $searchText)
-                            .autocorrectionDisabled()
-                    }
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 10)
-                    .background(Color(.systemGray6))
-                    .clipShape(Capsule())
-                    .padding(.horizontal, 12)
-                    
-                    
-                    Button {
-                        // TODO: show filter sheet
-                    } label: {
-                        Image(.filter)
-                            .font(.system(size: 1))
-                            .foregroundStyle(Color(red: 0.55, green: 0.60, blue: 0.85))
-                    }
-                    .padding(.trailing)
-                }
-                
+        VStack {
+            // MARK: Header
+            HomeHeaderView(
+                userName: "Divya",
+                userEmail: "divya.panthi03@gmail.com",
+                hasNotification: true,
+                onPost: {
+                    navigateToReport = true
+                })
+            // MARK: Search + Filter
+            HStack(spacing: 10){
                 HStack {
-                    Spacer()
-                    Button("See all") {
-                        // TODO: navigate to full list
-                    }
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(Color(red: 0.55, green: 0.60, blue: 0.85))
+                    Image(systemName: "magnifyingglass")
+                        .foregroundStyle(.secondary)
+                    TextField("Search items…", text: $viewModel.searchText)
+                        .autocorrectionDisabled()
                 }
-                .padding(.horizontal, 16)
-                .padding(.top, 6)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .background(Color(.systemGray6))
+                .clipShape(Capsule())
+                .padding(.horizontal, 12)
                 
-                // Grid
-                ScrollView {
-                    if viewModel.isLoading {
-                        ProgressView()
-                            .padding(.top, 60)
-                    } else {
-                        LazyVGrid(columns: columns, spacing: 12) {
-                            ForEach(viewModel.filteredItems) { item in
-                                NavigationLink {
-                                    PostDetailView(item: viewModel.items[0])
-                                } label: {
-                                    ItemCardView(item: item)
-                                }
-                                .buttonStyle(.plain)
+                
+                Button {
+                    showFilterSheet = true
+                } label: {
+                    Image(.filter)
+                        .font(.system(size: 1))
+                        .foregroundStyle(Color(red: 0.55, green: 0.60, blue: 0.85))
+                }
+                .padding(.trailing)
+            }
+            
+            HStack {
+                Spacer()
+                Button("See all") {
+                    // TODO: navigate to full list
+                }
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(Color(red: 0.55, green: 0.60, blue: 0.85))
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 6)
+            
+            // Grid
+            ScrollView {
+                if viewModel.isLoading {
+                    ProgressView()
+                        .padding(.top, 60)
+                } else if let error = viewModel.errorMessage {
+                    VStack(spacing: 12) {
+                        Image(systemName: "exclamationmark.triangle")
+                            .font(.system(size: 40))
+                            .foregroundStyle(.secondary)
+                        Text("Error loading posts")
+                            .font(.system(size: 16, weight: .semibold))
+                        Text(error)
+                            .font(.system(size: 14))
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                        Button("Retry") {
+                            Task {
+                                await viewModel.loadItems()
                             }
                         }
-                        .padding(.horizontal, 16)
-                        .padding(.top, 8)
-                        .padding(.bottom, 20)
+                        .buttonStyle(.borderedProminent)
+                    }
+                    .padding(.top, 60)
+                    .padding(.horizontal, 32)
+                } else if viewModel.filteredItems.isEmpty {
+                    VStack(spacing: 12) {
+                        Image(systemName: "magnifyingglass")
+                            .font(.system(size: 40))
+                            .foregroundStyle(.secondary)
+                        Text("No items found")
+                            .font(.system(size: 16, weight: .semibold))
+                        Text("Try adjusting your search")
+                            .font(.system(size: 14))
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.top, 60)
+                } else {
+                    LazyVGrid(columns: columns, spacing: 12) {
+                        ForEach(viewModel.filteredItems) { item in
+                            NavigationLink {
+                                PostDetailView(item: item)
+                            } label: {
+                                ItemCardView(item: item)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 8)
+                    .padding(.bottom, 20)
+                }
+            }
+            .refreshable {
+                await viewModel.refreshItems()
+            }
+            Spacer()
+        }
+        .navigationDestination(isPresented: $navigateToReport) {
+            PostItemView()
+                .environmentObject(postViewModel)
+        }
+        .sheet(isPresented: $showFilterSheet) {
+            FilterSheetView(selectedFilter: $selectedFilter) {
+                Task {
+                    if let filter = selectedFilter {
+                        await viewModel.loadItems(ofType: filter)
+                    } else {
+                        await viewModel.loadItems()
                     }
                 }
-                Spacer()
             }
-        }.navigationDestination(isPresented: $navigateToReport) {
-            PostItemView()
+            .presentationDetents([.medium])
+        }
+        .onChange(of: searchText) { _, newValue in
+            viewModel.searchText = newValue
+        }
+        .onChange(of: navigateToReport) { oldValue, newValue in
+            // When returning from PostItemView (navigateToReport changes from true to false)
+            if oldValue == true && newValue == false {
+                Task {
+                    await viewModel.refreshItems()
+                }
+            }
         }
     }
 }
+
+// MARK: - Filter Sheet View
+struct FilterSheetView: View {
+    @Binding var selectedFilter: PostType?
+    let onApply: () -> Void
+    @Environment(\.dismiss) private var dismiss
+    
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 20) {
+                Text("Filter Items")
+                    .font(.system(size: 20, weight: .bold))
+                    .padding(.top, 20)
+                
+                VStack(spacing: 12) {
+                    FilterOptionRow(
+                        title: "All Items",
+                        isSelected: selectedFilter == nil
+                    ) {
+                        selectedFilter = nil
+                    }
+                    
+                    FilterOptionRow(
+                        title: "Lost Items",
+                        isSelected: selectedFilter == .lost
+                    ) {
+                        selectedFilter = .lost
+                    }
+                    
+                    FilterOptionRow(
+                        title: "Found Items",
+                        isSelected: selectedFilter == .found
+                    ) {
+                        selectedFilter = .found
+                    }
+                }
+                .padding(.horizontal, 20)
+                
+                Spacer()
+                
+                Button {
+                    onApply()
+                    dismiss()
+                } label: {
+                    Text("Apply Filter")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .background(Color(red: 0.55, green: 0.60, blue: 0.85))
+                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 20)
+            }
+        }
+    }
+}
+// MARK: - Filter Option Row
+struct FilterOptionRow: View {
+    let title: String
+    let isSelected: Bool
+    let onTap: () -> Void
+    
+    var body: some View {
+        Button(action: onTap) {
+            HStack {
+                Text(title)
+                    .font(.system(size: 16))
+                    .foregroundStyle(.primary)
+                
+                Spacer()
+                
+                if isSelected {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(Color(red: 0.55, green: 0.60, blue: 0.85))
+                } else {
+                    Image(systemName: "circle")
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+            .background(Color(.systemBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+

@@ -8,13 +8,23 @@
 import SwiftUI
 
 struct RootView: View {
-    var body: some View {
-        NavigationStack {
-            MainTabView()
-        }
-    }
+	@StateObject private var authVM = AuthViewModel()
+
+	var body: some View {
+		Group {
+			if authVM.isAuthenticated {
+                MainTabView()
+					.environmentObject(authVM)
+			} else {
+				NavigationStack {
+					SplashView()
+				}
+				.environmentObject(authVM)
+			}
+		}
+	}
 }
 
 #Preview {
-    RootView()
+	RootView()
 }

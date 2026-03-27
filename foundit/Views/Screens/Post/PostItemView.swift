@@ -6,11 +6,15 @@
 //
 import SwiftUI
 import PhotosUI
+import CoreLocation
+import FirebaseFirestore
 
 // MARK: - PostItemView
 struct PostItemView: View {
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject var postViewModel: PostViewModel
     
-    @State private var selectedStatus: ItemStatus? = nil
+    @State private var selectedType: PostType? = nil
     @State private var selectedCategory: String = "Books"
     @State private var selectedDate: Date = Date()
     @State private var showDatePicker: Bool = false
@@ -37,18 +41,18 @@ struct PostItemView: View {
                 VStack(spacing: 0) {
                     CheckboxRow(
                         label: "Lost Item",
-                        isSelected: selectedStatus == .lost
+                        isSelected: selectedType == .lost
                     ) {
-                        selectedStatus = selectedStatus == .lost ? nil : .lost
+                        selectedType = selectedType == .lost ? nil : .lost
                     }
                     
                     Divider().padding(.leading, 50)
                     
                     CheckboxRow(
                         label: "Found Item",
-                        isSelected: selectedStatus == .found
+                        isSelected: selectedType == .found
                     ) {
-                        selectedStatus = selectedStatus == .found ? nil : .found
+                        selectedType = selectedType == .found ? nil : .found
                     }
                 }
                 .background(Color(.systemBackground))
@@ -272,7 +276,7 @@ struct PostItemView: View {
                 
                 VStack(spacing: 12) {
                     Button {
-                        // TODO: submit report
+                        submitReport()
                     } label: {
                         Text("Submit Report")
                             .font(.system(size: 16, weight: .semibold))
@@ -282,9 +286,11 @@ struct PostItemView: View {
                             .background(Color(red: 0.55, green: 0.60, blue: 0.85))
                             .clipShape(RoundedRectangle(cornerRadius: 14))
                     }
+                    .disabled(!isFormValid)
+                    .opacity(isFormValid ? 1.0 : 0.5)
                     
                     Button {
-                        // TODO: dismiss
+                        dismiss()
                     } label: {
                         Text("Cancel")
                             .font(.system(size: 16, weight: .semibold))
@@ -307,6 +313,50 @@ struct PostItemView: View {
         .navigationTitle("Report Lost or Found Item")
         .navigationBarTitleDisplayMode(.inline)
         //        .background(Color(.systemGroupedBackground))
+    }
+    
+    // MARK: - Helper Functions
+    private var isFormValid: Bool {
+        guard let type = selectedType,
+              !title.trimmingCharacters(in: .whitespaces).isEmpty,
+              !descriptionText.trimmingCharacters(in: .whitespaces).isEmpty,
+              !location.trimmingCharacters(in: .whitespaces).isEmpty,
+              let _ = selectedCoordinate else {
+            return false
+        }
+        return true
+    }
+    
+    private func submitReport() {
+        guard let type = selectedType,
+              let coordinate = selectedCoordinate else {
+            return
+        }
+        
+        Task {
+            var photoData: [Data] = []
+            if let image = selectedImage,
+               let data = image.jpegData(compressionQuality: 0.7) {
+                photoData.append(data)
+            }
+            
+            let geoPoint = GeoPoint(
+                latitude: coordinate.latitude,
+                longitude: coordinate.longitude
+            )
+            
+            await postViewModel.createPost(
+                title: title,
+                description: descriptionText,
+                category: selectedCategory,
+                type: type,
+                location: geoPoint,
+                locationText: location,
+                photoData: photoData
+            )
+            
+            dismiss()
+        }
     }
 }
 

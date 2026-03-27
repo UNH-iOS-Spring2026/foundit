@@ -1,14 +1,21 @@
 //
-//  LostFoundItem.swift
+//  LostFoundItem.swift (DEPRECATED - Use Post.swift instead)
 //  foundit
 //
 //  Created by Divya Panthi on 17/03/2026.
 //
+//  This file is kept for reference only.
+//  All models have been migrated to Post.swift to work with Firebase backend.
 
+/*
 import Foundation
 import UIKit
 
-enum ItemStatus {
+// LEGACY CODE - DO NOT USE
+// This was the original local model before Firebase integration
+// All functionality has been moved to Post.swift
+
+enum OldPostStatus {
     case lost
     case found
  
@@ -21,7 +28,7 @@ enum ItemStatus {
 }
 
 // MARK: Reporter
-struct Reporter: Identifiable {
+struct OldReporter: Identifiable {
     let id: UUID
     let name: String
     let avatarName: String        // Asset catalog image name
@@ -33,24 +40,18 @@ struct Reporter: Identifiable {
     }
 }
 
-struct ItemCoordinate {
-    let latitude: Double
-    let longitude: Double
-}
-
-struct LostFoundItem: Identifiable {
+struct OldPost: Identifiable {
     let id: UUID
     let title: String
     let description: String
     let imageName: String
     let images: [String]  // multiple images used in post detail
     let imageURL: URL?
-    let status: ItemStatus
+    let status: OldPostStatus
     let date: Date
     let location: String
     let category: String
-    let reportedBy: Reporter
-    let coordinate: ItemCoordinate
+    let reportedBy: OldReporter
  
     init(
         id: UUID = UUID(),
@@ -59,12 +60,11 @@ struct LostFoundItem: Identifiable {
         imageName: String,
         images: [String] = [],
         imageURL: URL? = nil,
-        status: ItemStatus,
+        status: OldPostStatus,
         date: Date,
         location: String,
         category: String = "General",
-        reportedBy: Reporter = Reporter(name: "Unknown", avatarName: ""),
-        coordinate: ItemCoordinate = ItemCoordinate(latitude: 41.3083, longitude: -72.9279)
+        reportedBy: OldReporter = OldReporter(name: "Unknown", avatarName: "")
         
     ) {
         self.id = id
@@ -78,79 +78,7 @@ struct LostFoundItem: Identifiable {
         self.location = location
         self.category = category
         self.reportedBy = reportedBy
-        self.coordinate = coordinate
-        
     }
 }
+*/
 
-extension LostFoundItem {
-    var formattedDate: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM d, yyyy"
-        return formatter.string(from: date)
-    }
-    
-    var formattedTime: String {
-            let formatter = DateFormatter()
-            formatter.dateFormat = "hh:mma"
-            return formatter.string(from: date)
-        }
-    
-}
-
-
-extension LostFoundItem {
-    static let mockItems: [LostFoundItem] = [
-        LostFoundItem(
-            title: "iPhone Charger",
-            description: "White Apple USB-C charger with cable.",
-            imageName: "charger",
-            images: ["charger", "glasses"],
-            status: .lost,
-            date: DateComponents(calendar: .current, year: 2026, month: 1, day: 11).date ?? Date(),
-            location: "Maxcy Hall",
-            reportedBy: Reporter(name: "Divya", avatarName: "profile"),
-            coordinate: ItemCoordinate(latitude: 41.3083, longitude: -72.9279)
-        ),
-        LostFoundItem(
-            title: "Black Earphones",
-            description: "Black wireless earbuds with charging case.",
-            imageName: "charger",
-            status: .found,
-            date: DateComponents(calendar: .current, year: 2026, month: 1, day: 25).date ?? Date(),
-            location: "Bergami"
-        ),
-        LostFoundItem(
-            title: "Red Book",
-            description: "Red hardcover book, no title on cover.",
-            imageName: "charger",
-            status: .found,
-            date: DateComponents(calendar: .current, year: 2026, month: 1, day: 22).date ?? Date(),
-            location: "UNH Campus"
-        ),
-        LostFoundItem(
-            title: "Black Eye Glasses",
-            description: "Black cat-eye prescription glasses.",
-            imageName: "charger",
-            status: .lost,
-            date: DateComponents(calendar: .current, year: 2026, month: 1, day: 31).date ?? Date(),
-            location: "Bethel"
-        ),
-        LostFoundItem(
-            title: "Black Eye Glasses",
-            description: "Black cat-eye prescription glasses.",
-            imageName: "charger",
-            status: .lost,
-            date: DateComponents(calendar: .current, year: 2026, month: 1, day: 31).date ?? Date(),
-            location: "Bethel"
-        ),
-        LostFoundItem(
-            title: "Black Eye Glasses",
-            description: "Black cat-eye prescription glasses.",
-            imageName: "charger",
-            status: .lost,
-            date: DateComponents(calendar: .current, year: 2026, month: 1, day: 31).date ?? Date(),
-            location: "Bethel"
-        )
-    ]
-}

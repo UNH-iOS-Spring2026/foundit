@@ -9,13 +9,13 @@ import SwiftUI
 import MapKit
 
 struct PostDetailView: View {
-    let item: LostFoundItem
+    let item: Post
     
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: 0) {
                 
-                ItemImageCarouselView(images: item.images)
+                ItemImageCarouselView(images: item.photoUrls)
                     .padding(.horizontal, 16)
                     .padding(.top, 12)
                 
@@ -65,8 +65,8 @@ struct PostDetailView: View {
                         .foregroundStyle(.primary)
                     
                     HStack(spacing: 10) {
-                        if UIImage(named: item.reportedBy.avatarName) != nil {
-                            Image(item.reportedBy.avatarName)
+                        if let avatarUrl = item.reporterInfo?.avatarUrl, UIImage(named: avatarUrl) != nil {
+                            Image(avatarUrl)
                                 .resizable()
                                 .scaledToFill()
                                 .frame(width: 36, height: 36)
@@ -81,7 +81,7 @@ struct PostDetailView: View {
                                 )
                         }
                         
-                        Text(item.reportedBy.name)
+                        Text(item.reporterInfo?.name ?? "Unknown")
                             .font(.system(size: 15))
                             .foregroundStyle(.primary)
                     }
@@ -138,7 +138,7 @@ struct PostDetailView: View {
                         Image(systemName: "mappin.circle.fill")
                             .foregroundStyle(.pink)
                             .font(.system(size: 16))
-                        Text(item.location)
+                        Text(item.lastSeenLocationText)
                             .font(.system(size: 14, weight: .medium))
                             .foregroundStyle(.primary)
                     }
@@ -170,7 +170,7 @@ struct PostDetailView: View {
                         GridItem(.flexible(), spacing: 12),
                         GridItem(.flexible(), spacing: 12)
                     ], spacing: 12) {
-                        ForEach(LostFoundItem.mockItems) { similarItem in
+                        ForEach(Post.mockItems) { similarItem in
                             NavigationLink {
                                 PostDetailView(item: similarItem)
                             } label: {
@@ -195,6 +195,6 @@ struct PostDetailView: View {
 // MARK: - Preview
 #Preview {
     NavigationStack {
-        PostDetailView(item: LostFoundItem.mockItems[0])
+        PostDetailView(item: Post.mockItems[0])
     }
 }

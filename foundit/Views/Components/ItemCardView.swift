@@ -9,7 +9,7 @@ import SwiftUI
 
 struct ItemCardView: View {
 
-    let item: LostFoundItem
+    let item: Post
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -20,7 +20,7 @@ struct ItemCardView: View {
                     .frame(height: 130)
                     .clipped()
 
-                StatusBadgeView(status: item.status)
+                StatusBadgeView(type: item.type)
                     .padding(8)
             }
 
@@ -30,7 +30,7 @@ struct ItemCardView: View {
                     .foregroundStyle(.primary)
                     .lineLimit(1)
 
-                Text(item.date.formatted_MMM_d_yyyy)
+                Text(item.formattedDate)
                     .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(.primary)
 
@@ -38,7 +38,7 @@ struct ItemCardView: View {
                     Image(systemName: "mappin.circle.fill")
                         .foregroundStyle(.pink)
                         .font(.system(size: 13))
-                    Text(item.location)
+                    Text(item.lastSeenLocationText)
                         .font(.system(size: 12))
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
@@ -55,7 +55,7 @@ struct ItemCardView: View {
     // MARK: – Image resolution
     @ViewBuilder
     private var itemImage: some View {
-        if let url = item.imageURL {
+        if let urlString = item.primaryImageUrl, let url = URL(string: urlString) {
             AsyncImage(url: url) { phase in
                 switch phase {
                 case .success(let image):
@@ -78,9 +78,16 @@ struct ItemCardView: View {
     private var placeholderImage: some View {
         ZStack {
             Color(.systemGray5)
-            Image(item.imageName)
-                .font(.system(size: 36))
-                .foregroundStyle(Color(.systemGray2))
+            // Fallback to first photo URL as asset name for mock data
+            if let imageName = item.photoUrls.first {
+                Image(imageName)
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                Image(systemName: "photo")
+                    .font(.system(size: 36))
+                    .foregroundStyle(Color(.systemGray2))
+            }
         }
     }
 }
@@ -88,17 +95,17 @@ struct ItemCardView: View {
 // MARK: - StatusBadgeView
 struct StatusBadgeView: View {
 
-    let status: ItemStatus
+    let type: PostType
 
     private var badgeColor: Color {
-        switch status {
+        switch type {
         case .lost:  return .pink
         case .found: return .green
         }
     }
 
     var body: some View {
-        Text(status.label)
+        Text(type.label)
             .font(.system(size: 12, weight: .semibold))
             .foregroundStyle(badgeColor)
             .padding(.horizontal, 10)

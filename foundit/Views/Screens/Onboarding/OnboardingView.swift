@@ -2,8 +2,8 @@
 //  OnboardingView.swift
 //  foundit
 //
-//	Source of inspiration for UI: ChatGPT (OpenAI)
-//  Created by Ashish Khadka on 16/03/2026.
+//  Source of inspiration for UI: ChatGPT (OpenAI)
+//  Updated by Ashish Khadka on 16/03/2026.
 //
 
 import SwiftUI
@@ -28,12 +28,12 @@ struct OnboardingView: View {
 		OnboardingPage(
 			imageName: "onboarding2",
 			title: "Smart Matches, Real-Time Alerts",
-			description: "As your item details similar listings and notifies you instantly when there's a possible match."
+			description: "Scan item details, discover similar listings, and get notified instantly when there is a possible match."
 		),
 		OnboardingPage(
 			imageName: "onboarding3",
 			title: "Securely Connect & Reclaim",
-			description: "Chat, verify ownership, and coordinate safe returns with real-time chat, and ID."
+			description: "Chat, verify ownership, and coordinate safe returns with real-time messaging and identity checks."
 		)
 	]
 
@@ -109,8 +109,6 @@ struct OnboardingView: View {
 			}
 
 			Spacer()
-
-			
 			Image(systemName: "chevron.left")
 				.font(.system(size: 14, weight: .medium))
 				.opacity(0)
@@ -151,7 +149,7 @@ struct OnboardingView: View {
 				goToLogin = true
 			}
 		} label: {
-			Text("NEXT")
+			Text(currentPage == pages.count - 1 ? "GET STARTED" : "NEXT")
 				.font(.system(size: 14, weight: .bold))
 				.foregroundColor(.black)
 				.frame(maxWidth: .infinity)

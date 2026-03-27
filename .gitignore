@@ -1,0 +1,15 @@
+# Xcode user-specific data
+xcuserdata/
+*.xcuserstate
+
+# Xcode workspace user data
+*.xcworkspace/xcuserdata/
+
+# Build products
+build/
+DerivedData/
+
+# macOS
+.DS_Store
+
+GoogleService-Info.plistGoogleService-Info.plist
