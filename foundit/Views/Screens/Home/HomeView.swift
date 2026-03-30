@@ -18,6 +18,7 @@ struct HomeView: View {
     @State private var showDeleteConfirmation = false
     @State private var postToEdit: Post? = nil
     @State private var navigateToEdit: Bool = false
+    @State private var showAllItems: Bool = false
 
     
     private let columns = [
@@ -63,7 +64,7 @@ struct HomeView: View {
             HStack {
                 Spacer()
                 Button("See all") {
-                    // TODO: navigate to full list
+                    showAllItems = true
                 }
                 .font(.system(size: 14, weight: .medium))
                 .foregroundStyle(Color(red: 0.55, green: 0.60, blue: 0.85))
@@ -162,6 +163,10 @@ struct HomeView: View {
                 }
             }
             .presentationDetents([.medium])
+        }
+        .fullScreenCover(isPresented: $showAllItems) {
+            AllItemsView()
+                .environmentObject(postViewModel)
         }
         .onChange(of: searchText) { _, newValue in
             viewModel.searchText = newValue
