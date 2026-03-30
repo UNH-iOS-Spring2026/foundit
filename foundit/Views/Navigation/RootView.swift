@@ -17,11 +17,11 @@ struct RootView: View {
 					.environmentObject(authVM)
 			} else {
 				NavigationStack {
-					SplashView()
+                    MainTabView()
 				}
-				.environmentObject(authVM)
 			}
 		}
+		.environmentObject(authVM)
 	}
 }
 

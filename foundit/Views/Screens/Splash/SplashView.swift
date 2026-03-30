@@ -3,6 +3,7 @@
 //  foundit
 //
 //  Created by Divya Panthi on 10/03/2026.
+//  Updated by Ashish on 03/26/2026
 //
 
 import SwiftUI
@@ -65,4 +66,3 @@ struct SplashView: View {
 	}
 	.environmentObject(AuthViewModel())
 }
-
