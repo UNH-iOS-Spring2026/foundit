@@ -16,7 +16,7 @@ struct RootView: View {
 				MainTabView()
 			} else {
 				NavigationStack {
-					SplashView()
+                    MainTabView()
 				}
 			}
 		}
