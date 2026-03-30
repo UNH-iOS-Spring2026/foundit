@@ -51,9 +51,8 @@ class PostService {
     }
     
     func fetchSimilarPosts(to post: Post, limit: Int = 6) async throws -> [Post] {
-        print("Fetching similar posts: '\(post.category)'")
         
-        // First try: Fetch posts with the same category
+        // Fetch posts with the same category only
         let categoryQuery: Query = db.collection(collection)
             .whereField("category", isEqualTo: post.category)
         
@@ -67,9 +66,7 @@ class PostService {
                 if fetchedPost.id == nil || fetchedPost.id?.isEmpty == true {
                     fetchedPost.id = document.documentID
                 }
-                
-                print("-Found post: \(fetchedPost.title) (ID: \(fetchedPost.id ?? "nil"), Category: \(fetchedPost.category))")
-                
+                                
                 // Skip the current post itself
                 if fetchedPost.id != post.id {
                     posts.append(fetchedPost)
@@ -77,36 +74,6 @@ class PostService {
             } catch {
                 print("Failed to decode document: \(error.localizedDescription)")
                 continue
-            }
-        }
-        
-        // If we don't have enough posts from the same category, fetch some recent posts
-        if posts.count < limit {
-            let allPostsQuery: Query = db.collection(collection)
-                .order(by: "createdAt", descending: true)
-                .limit(to: limit + 5)
-            
-            let allSnapshot = try await allPostsQuery.getDocuments()
-            
-            for document in allSnapshot.documents {
-                do {
-                    var fetchedPost = try document.data(as: Post.self)
-                    if fetchedPost.id == nil || fetchedPost.id?.isEmpty == true {
-                        fetchedPost.id = document.documentID
-                    }
-                    
-                    // Add if not already in the list and not the current post
-                    if fetchedPost.id != post.id && !posts.contains(where: { $0.id == fetchedPost.id }) {
-                        posts.append(fetchedPost)
-                    }
-                    
-                    // Stop if we have enough
-                    if posts.count >= limit {
-                        break
-                    }
-                } catch {
-                    continue
-                }
             }
         }
         
