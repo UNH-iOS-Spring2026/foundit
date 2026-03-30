@@ -4,6 +4,7 @@
 //
 
 import Foundation
+import UIKit
 import FirebaseFirestore
 import Combine
 
@@ -12,6 +13,7 @@ class ChatViewModel: ObservableObject {
     @Published var conversations: [Chat] = []
     @Published var messages: [Message] = []
     @Published var isLoading = false
+    @Published var isSendingPhoto = false
     @Published var errorMessage: String?
 
     private let chatService = ChatService()
@@ -59,6 +61,34 @@ class ChatViewModel: ObservableObject {
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    func sendPhoto(chatId: String, imageData: Data, senderId: String = AppConfig.placeholderUserId) async {
+        isSendingPhoto = true
+        do {
+            // Compress and encode as a base64 data URL to avoid Firebase Storage dependency
+            guard let uiImage = UIImage(data: imageData),
+                  let jpegData = uiImage.jpegData(compressionQuality: 0.5) else {
+                errorMessage = "Failed to process image"
+                isSendingPhoto = false
+                return
+            }
+            let base64String = jpegData.base64EncodedString()
+            let dataUrl = "data:image/jpeg;base64,\(base64String)"
+
+            let message = Message(
+                senderId: senderId,
+                senderRole: .student,
+                type: .photo,
+                text: "",
+                photoUrl: dataUrl,
+                sentAt: Timestamp()
+            )
+            try await chatService.sendMessage(chatId: chatId, message: message)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+        isSendingPhoto = false
     }
 
     func stopListening() {

@@ -34,8 +34,9 @@ class ChatService {
         try batch.setData(from: message, forDocument: msgRef)
 
         let chatRef = db.collection(collection).document(chatId)
+        let lastMessageText = message.type == .photo ? "Photo" : message.text
         batch.updateData([
-            "lastMessage": message.text,
+            "lastMessage": lastMessageText,
             "lastMessageAt": message.sentAt,
             "updatedAt": message.sentAt
         ], forDocument: chatRef)
