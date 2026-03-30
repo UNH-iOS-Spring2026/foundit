@@ -9,6 +9,12 @@ import PhotosUI
 
 // MARK: - PostItemView
 struct PostItemView: View {
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject var postViewModel: PostViewModel
+    
+    // Edit mode support
+    var postToEdit: Post? = nil
+    var isEditMode: Bool { postToEdit != nil }
     
     @State private var selectedStatus: ItemStatus? = nil
     @State private var selectedCategory: String = "Books"
@@ -23,6 +29,7 @@ struct PostItemView: View {
     @State private var hideContactDetails: Bool = false
     @State private var showLocationPicker: Bool = false
     @State private var selectedCoordinate: CLLocationCoordinate2D? = nil
+    @State private var existingPhotoUrls: [String] = []
     
     
     let categories = ["Books", "Electronics", "Accessories", "Clothing", "Keys", "Wallet", "Other"]
@@ -274,7 +281,7 @@ struct PostItemView: View {
                     Button {
                         // TODO: submit report
                     } label: {
-                        Text("Submit Report")
+                        Text(isEditMode ? "Update Post" : "Submit Report")
                             .font(.system(size: 16, weight: .semibold))
                             .foregroundStyle(.white)
                             .frame(maxWidth: .infinity)
@@ -304,9 +311,88 @@ struct PostItemView: View {
         .padding(.top, 16)
         .padding(.bottom, 32)
         
-        .navigationTitle("Report Lost or Found Item")
+        .navigationTitle(isEditMode ? "Edit Post" : "Report Lost or Found Item")
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            loadPostData()
+        }
         //        .background(Color(.systemGroupedBackground))
+    }
+    
+    // MARK: - Helper Functions
+    private var isFormValid: Bool {
+        guard let type = selectedType,
+              !title.trimmingCharacters(in: .whitespaces).isEmpty,
+              !descriptionText.trimmingCharacters(in: .whitespaces).isEmpty,
+              !location.trimmingCharacters(in: .whitespaces).isEmpty,
+              let _ = selectedCoordinate else {
+            return false
+        }
+        return true
+    }
+    
+    private func loadPostData() {
+        guard let post = postToEdit else { return }
+        
+        selectedType = post.type
+        selectedCategory = post.category
+        title = post.title
+        descriptionText = post.description
+        location = post.lastSeenLocationText
+        selectedCoordinate = CLLocationCoordinate2D(
+            latitude: post.lastSeenLocation.latitude,
+            longitude: post.lastSeenLocation.longitude
+        )
+        existingPhotoUrls = post.photoUrls
+        selectedDate = post.createdAt.dateValue()
+    }
+    
+    private func submitReport() {
+        guard let type = selectedType,
+              let coordinate = selectedCoordinate else {
+            return
+        }
+        
+        Task {
+            var photoData: [Data] = []
+            if let image = selectedImage,
+               let data = image.jpegData(compressionQuality: 0.7) {
+                photoData.append(data)
+            }
+            
+            let geoPoint = GeoPoint(
+                latitude: coordinate.latitude,
+                longitude: coordinate.longitude
+            )
+            
+            if isEditMode, let postId = postToEdit?.id {
+                // Update existing post
+                await postViewModel.updatePost(
+                    id: postId,
+                    title: title,
+                    description: descriptionText,
+                    category: selectedCategory,
+                    type: type,
+                    location: geoPoint,
+                    locationText: location,
+                    photoData: photoData,
+                    existingPhotoUrls: existingPhotoUrls
+                )
+            } else {
+                // Create new post
+                await postViewModel.createPost(
+                    title: title,
+                    description: descriptionText,
+                    category: selectedCategory,
+                    type: type,
+                    location: geoPoint,
+                    locationText: location,
+                    photoData: photoData
+                )
+            }
+            
+            dismiss()
+        }
     }
 }
 

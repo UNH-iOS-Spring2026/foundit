@@ -45,4 +45,8 @@ class PostService {
     func deletePost(id: String) async throws {
         try await db.collection(collection).document(id).delete()
     }
+    
+    func updatePost(id: String, post: Post) async throws {
+        try db.collection(collection).document(id).setData(from: post, merge: true)
+    }
 }

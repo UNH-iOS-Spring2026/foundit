@@ -57,5 +57,21 @@ final class HomeViewModel: ObservableObject {
             errorMessage = "Failed to delete post: \(error.localizedDescription)"
         }
     }
+    
+    // MARK: Update post
+    func updatePost(_ post: Post) async {
+        guard let postId = post.id else {
+            errorMessage = "Cannot update post: missing ID"
+            return
+        }
+        
+        do {
+            try await postService.updatePost(id: postId, post: post)
+            // Refresh items to show updated post
+            await loadItems()
+        } catch {
+            errorMessage = "Failed to update post: \(error.localizedDescription)"
+        }
+    }
 }
  

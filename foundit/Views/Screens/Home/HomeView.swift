@@ -15,6 +15,8 @@ struct HomeView: View {
     @State private var selectedFilter: PostType? = nil
     @State private var postToDelete: Post? = nil
     @State private var showDeleteConfirmation = false
+    @State private var postToEdit: Post? = nil
+    @State private var navigateToEdit: Bool = false
 
     
     private let columns = [

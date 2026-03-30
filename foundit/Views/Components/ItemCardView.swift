@@ -11,7 +11,9 @@ struct ItemCardView: View {
 
     let item: Post
     var onDelete: (() -> Void)? = nil
+    var onEdit: (() -> Void)? = nil
     var canDelete: Bool = false
+    var canEdit: Bool = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -53,6 +55,14 @@ struct ItemCardView: View {
         .clipShape(RoundedRectangle(cornerRadius: 14))
         .shadow(color: .black.opacity(0.07), radius: 6, x: 0, y: 2)
         .contextMenu {
+            if canEdit {
+                Button {
+                    onEdit?()
+                } label: {
+                    Label("Edit", systemImage: "pencil")
+                }
+            }
+            
             if canDelete {
                 Button(role: .destructive) {
                     onDelete?()
