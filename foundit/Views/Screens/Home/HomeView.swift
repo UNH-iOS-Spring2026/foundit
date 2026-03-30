@@ -17,6 +17,7 @@ struct HomeView: View {
     @State private var showDeleteConfirmation = false
     @State private var postToEdit: Post? = nil
     @State private var navigateToEdit: Bool = false
+    @State private var showAllItems: Bool = false
 
     
     private let columns = [
