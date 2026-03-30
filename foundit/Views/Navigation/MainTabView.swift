@@ -115,4 +115,5 @@ struct ProfilePlaceholderView: View {
 
 #Preview {
     MainTabView()
+        
 }

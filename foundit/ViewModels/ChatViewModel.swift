@@ -48,7 +48,10 @@ class ChatViewModel: ObservableObject {
     func sendMessage(chatId: String, text: String, senderId: String = AppConfig.placeholderUserId) async {
         let message = Message(
             senderId: senderId,
+            senderRole: .student,
+            type: .text,
             text: text,
+            photoUrl: nil,
             sentAt: Timestamp()
         )
         do {
@@ -62,3 +65,4 @@ class ChatViewModel: ObservableObject {
         cancellables.removeAll()
     }
 }
+
