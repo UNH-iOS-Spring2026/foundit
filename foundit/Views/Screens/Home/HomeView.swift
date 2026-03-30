@@ -14,6 +14,8 @@ struct HomeView: View {
     @State private var navigateToReport: Bool = false
     @State private var showFilterSheet: Bool = false
     @State private var selectedFilter: PostType? = nil
+    @State private var postToDelete: Post? = nil
+    @State private var showDeleteConfirmation = false
 
     
     private let columns = [
@@ -110,7 +112,14 @@ struct HomeView: View {
                             NavigationLink {
                                 PostDetailView(item: item)
                             } label: {
-                                ItemCardView(item: item)
+                                ItemCardView(
+                                    item: item,
+                                    onDelete: {
+                                        postToDelete = item
+                                        showDeleteConfirmation = true
+                                    },
+                                    canDelete: item.createdBy == AppConfig.placeholderUserId
+                                )
                             }
                             .buttonStyle(.plain)
                         }
@@ -151,6 +160,19 @@ struct HomeView: View {
                     await viewModel.refreshItems()
                 }
             }
+        }
+        .alert("Delete Post", isPresented: $showDeleteConfirmation, presenting: postToDelete) { post in
+            Button("Cancel", role: .cancel) {
+                postToDelete = nil
+            }
+            Button("Delete", role: .destructive) {
+                Task {
+                    await viewModel.deletePost(post)
+                    postToDelete = nil
+                }
+            }
+        } message: { post in
+            Text("Are you sure you want to delete '\(post.title)'? This action cannot be undone.")
         }
     }
 }

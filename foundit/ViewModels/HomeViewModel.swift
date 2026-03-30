@@ -73,5 +73,21 @@ final class HomeViewModel: ObservableObject {
         
         isLoading = false
     }
+    
+    // MARK: Delete post
+    func deletePost(_ post: Post) async {
+        guard let postId = post.id else {
+            errorMessage = "Cannot delete post: missing ID"
+            return
+        }
+        
+        do {
+            try await postService.deletePost(id: postId)
+            // Remove from local array for immediate UI update
+            items.removeAll { $0.id == postId }
+        } catch {
+            errorMessage = "Failed to delete post: \(error.localizedDescription)"
+        }
+    }
 }
  

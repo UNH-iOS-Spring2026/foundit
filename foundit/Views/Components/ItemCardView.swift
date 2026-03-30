@@ -10,6 +10,8 @@ import SwiftUI
 struct ItemCardView: View {
 
     let item: Post
+    var onDelete: (() -> Void)? = nil
+    var canDelete: Bool = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -50,6 +52,15 @@ struct ItemCardView: View {
         .background(Color(.systemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 14))
         .shadow(color: .black.opacity(0.07), radius: 6, x: 0, y: 2)
+        .contextMenu {
+            if canDelete {
+                Button(role: .destructive) {
+                    onDelete?()
+                } label: {
+                    Label("Delete", systemImage: "trash")
+                }
+            }
+        }
     }
 
     // MARK: – Image resolution
