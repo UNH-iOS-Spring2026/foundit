@@ -14,6 +14,10 @@ struct PostItemView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject var postViewModel: PostViewModel
     
+    // Edit mode support
+    var postToEdit: Post? = nil
+    var isEditMode: Bool { postToEdit != nil }
+    
     @State private var selectedType: PostType? = nil
     @State private var selectedCategory: String = "Books"
     @State private var selectedDate: Date = Date()
@@ -27,6 +31,7 @@ struct PostItemView: View {
     @State private var hideContactDetails: Bool = false
     @State private var showLocationPicker: Bool = false
     @State private var selectedCoordinate: CLLocationCoordinate2D? = nil
+    @State private var existingPhotoUrls: [String] = []
     
     
     let categories = ["Books", "Electronics", "Accessories", "Clothing", "Keys", "Wallet", "Other"]
@@ -278,7 +283,7 @@ struct PostItemView: View {
                     Button {
                         submitReport()
                     } label: {
-                        Text("Submit Report")
+                        Text(isEditMode ? "Update Post" : "Submit Report")
                             .font(.system(size: 16, weight: .semibold))
                             .foregroundStyle(.white)
                             .frame(maxWidth: .infinity)
@@ -310,8 +315,11 @@ struct PostItemView: View {
         .padding(.top, 16)
         .padding(.bottom, 32)
         
-        .navigationTitle("Report Lost or Found Item")
+        .navigationTitle(isEditMode ? "Edit Post" : "Report Lost or Found Item")
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            loadPostData()
+        }
         //        .background(Color(.systemGroupedBackground))
     }
     
@@ -325,6 +333,22 @@ struct PostItemView: View {
             return false
         }
         return true
+    }
+    
+    private func loadPostData() {
+        guard let post = postToEdit else { return }
+        
+        selectedType = post.type
+        selectedCategory = post.category
+        title = post.title
+        descriptionText = post.description
+        location = post.lastSeenLocationText
+        selectedCoordinate = CLLocationCoordinate2D(
+            latitude: post.lastSeenLocation.latitude,
+            longitude: post.lastSeenLocation.longitude
+        )
+        existingPhotoUrls = post.photoUrls
+        selectedDate = post.createdAt.dateValue()
     }
     
     private func submitReport() {
@@ -345,15 +369,31 @@ struct PostItemView: View {
                 longitude: coordinate.longitude
             )
             
-            await postViewModel.createPost(
-                title: title,
-                description: descriptionText,
-                category: selectedCategory,
-                type: type,
-                location: geoPoint,
-                locationText: location,
-                photoData: photoData
-            )
+            if isEditMode, let postId = postToEdit?.id {
+                // Update existing post
+                await postViewModel.updatePost(
+                    id: postId,
+                    title: title,
+                    description: descriptionText,
+                    category: selectedCategory,
+                    type: type,
+                    location: geoPoint,
+                    locationText: location,
+                    photoData: photoData,
+                    existingPhotoUrls: existingPhotoUrls
+                )
+            } else {
+                // Create new post
+                await postViewModel.createPost(
+                    title: title,
+                    description: descriptionText,
+                    category: selectedCategory,
+                    type: type,
+                    location: geoPoint,
+                    locationText: location,
+                    photoData: photoData
+                )
+            }
             
             dismiss()
         }

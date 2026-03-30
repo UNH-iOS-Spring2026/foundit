@@ -16,6 +16,8 @@ struct HomeView: View {
     @State private var selectedFilter: PostType? = nil
     @State private var postToDelete: Post? = nil
     @State private var showDeleteConfirmation = false
+    @State private var postToEdit: Post? = nil
+    @State private var navigateToEdit: Bool = false
 
     
     private let columns = [
@@ -118,7 +120,12 @@ struct HomeView: View {
                                         postToDelete = item
                                         showDeleteConfirmation = true
                                     },
-                                    canDelete: item.createdBy == AppConfig.placeholderUserId
+                                    onEdit: {
+                                        postToEdit = item
+                                        navigateToEdit = true
+                                    },
+                                    canDelete: item.createdBy == AppConfig.placeholderUserId,
+                                    canEdit: item.createdBy == AppConfig.placeholderUserId
                                 )
                             }
                             .buttonStyle(.plain)
@@ -137,6 +144,12 @@ struct HomeView: View {
         .navigationDestination(isPresented: $navigateToReport) {
             PostItemView()
                 .environmentObject(postViewModel)
+        }
+        .navigationDestination(isPresented: $navigateToEdit) {
+            if let post = postToEdit {
+                PostItemView(postToEdit: post)
+                    .environmentObject(postViewModel)
+            }
         }
         .sheet(isPresented: $showFilterSheet) {
             FilterSheetView(selectedFilter: $selectedFilter) {
@@ -159,6 +172,15 @@ struct HomeView: View {
                 Task {
                     await viewModel.refreshItems()
                 }
+            }
+        }
+        .onChange(of: navigateToEdit) { oldValue, newValue in
+            // When returning from edit view, refresh items
+            if oldValue == true && newValue == false {
+                Task {
+                    await viewModel.refreshItems()
+                }
+                postToEdit = nil
             }
         }
         .alert("Delete Post", isPresented: $showDeleteConfirmation, presenting: postToDelete) { post in
