@@ -2,8 +2,10 @@
 //  LoginView.swift
 //  foundit
 //
+
 //	Source of inspiration for UI: ChatGPT (OpenAI)
 //  Created by Ashish Khadka on 18/03/2026.
+
 //
 
 import SwiftUI

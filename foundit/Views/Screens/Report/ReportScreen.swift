@@ -8,15 +8,17 @@
 import SwiftUI
 
 struct ReportScreen: View {
+    @EnvironmentObject var postViewModel: PostViewModel
+    
     var body: some View {
-        VStack {
-            Text("Report Screen")
-                .font(.title)
-        }
-        .navigationTitle("Report")
+        PostItemView()
+            .environmentObject(postViewModel)
     }
 }
 
 #Preview {
-    ReportScreen()
+    NavigationStack {
+        ReportScreen()
+            .environmentObject(PostViewModel())
+    }
 }

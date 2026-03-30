@@ -109,7 +109,6 @@ struct OnboardingView: View {
 			}
 
 			Spacer()
-
 			Image(systemName: "chevron.left")
 				.font(.system(size: 14, weight: .medium))
 				.opacity(0)

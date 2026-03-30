@@ -13,7 +13,8 @@ struct RootView: View {
 	var body: some View {
 		Group {
 			if authVM.isAuthenticated {
-				MainTabView()
+                MainTabView()
+					.environmentObject(authVM)
 			} else {
 				NavigationStack {
                     MainTabView()
