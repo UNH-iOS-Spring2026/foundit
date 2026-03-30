@@ -38,6 +38,16 @@ class PostViewModel: ObservableObject {
         }
         isLoading = false
     }
+    
+    func fetchSimilarPosts(to post: Post, limit: Int = 6) async -> [Post] {
+        do {
+            let similar = try await postService.fetchSimilarPosts(to: post, limit: limit)
+            return similar
+        } catch {
+            errorMessage = error.localizedDescription
+            return []
+        }
+    }
 
     func createPost(
         title: String,

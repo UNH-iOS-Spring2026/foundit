@@ -9,7 +9,10 @@ import SwiftUI
 import MapKit
 
 struct PostDetailView: View {
-    let item: LostFoundItem
+    let item: Post
+    
+    @StateObject private var viewModel = PostViewModel()
+    @State private var similarItems: [Post] = []
     
     var body: some View {
         ScrollView(showsIndicators: false) {
@@ -166,20 +169,28 @@ struct PostDetailView: View {
                         .foregroundStyle(.primary)
                         .padding(.horizontal, 16)
  
-                    LazyVGrid(columns: [
-                        GridItem(.flexible(), spacing: 12),
-                        GridItem(.flexible(), spacing: 12)
-                    ], spacing: 12) {
-                        ForEach(LostFoundItem.mockItems) { similarItem in
-                            NavigationLink {
-                                PostDetailView(item: similarItem)
-                            } label: {
-                                ItemCardView(item: similarItem)
+                    if similarItems.isEmpty {
+                        Text("No similar items found")
+                            .font(.system(size: 14))
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 20)
+                    } else {
+                        LazyVGrid(columns: [
+                            GridItem(.flexible(), spacing: 12),
+                            GridItem(.flexible(), spacing: 12)
+                        ], spacing: 12) {
+                            ForEach(similarItems) { similarItem in
+                                NavigationLink {
+                                    PostDetailView(item: similarItem)
+                                } label: {
+                                    ItemCardView(item: similarItem)
+                                }
+                                .buttonStyle(.plain)
                             }
-                            .buttonStyle(.plain)
                         }
+                        .padding(.horizontal, 16)
                     }
-                    .padding(.horizontal, 16)
                 }
                 .padding(.top, 24)
                 .padding(.bottom, 32)
@@ -189,6 +200,11 @@ struct PostDetailView: View {
         .navigationTitle("Report Details")
         .navigationBarTitleDisplayMode(.inline)
         .background(Color(.systemGroupedBackground))
+        .task {
+            print("Fetching similar posts for: \(item.title) (Category: \(item.category))")
+            similarItems = await viewModel.fetchSimilarPosts(to: item, limit: 6)
+            print("Similar items count: \(similarItems.count)")
+        }
     }
 }
 
