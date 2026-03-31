@@ -14,6 +14,10 @@ struct ProfileScreen: View {
 	@State private var pushNotificationsEnabled = true
 	@State private var showLogoutAlert = false
 
+	private var userName: String {
+		authVM.currentUser?.displayName ?? "User"
+	}
+
 	private var userEmail: String {
 		Auth.auth().currentUser?.email ?? "No email available"
 	}
@@ -27,7 +31,7 @@ struct ProfileScreen: View {
 						.frame(width: 80, height: 80)
 						.foregroundColor(.gray)
 
-					Text("Dev User")
+					Text(userName)
 						.font(.title2)
 						.fontWeight(.semibold)
 

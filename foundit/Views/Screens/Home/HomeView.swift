@@ -10,6 +10,7 @@ import SwiftUI
 struct HomeView: View {
     @StateObject private var viewModel = HomeViewModel()
     @EnvironmentObject var postViewModel: PostViewModel
+    @EnvironmentObject var authVM: AuthViewModel
     @Binding var searchText: String
     @State private var navigateToReport: Bool = false
     @State private var showFilterSheet: Bool = false
@@ -30,8 +31,8 @@ struct HomeView: View {
         VStack {
             // MARK: Header
             HomeHeaderView(
-                userName: "Divya",
-                userEmail: "divya.panthi03@gmail.com",
+                userName: authVM.currentUser?.displayName ?? "User",
+                userEmail: authVM.currentUser?.email ?? "",
                 hasNotification: true,
                 onPost: {
                     navigateToReport = true

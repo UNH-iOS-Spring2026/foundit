@@ -4,9 +4,15 @@
 //
 
 import Foundation
+import FirebaseAuth
 
 struct AppConfig {
-    /// Placeholder user ID for development.
-    /// Replace with `Auth.auth().currentUser?.uid` once authentication is implemented.
-    static let placeholderUserId = "dev-user-001"
+    static var currentUserId: String {
+        Auth.auth().currentUser?.uid ?? ""
+    }
+
+    /// Deprecated: Use currentUserId instead.
+    static var placeholderUserId: String {
+        currentUserId
+    }
 }
