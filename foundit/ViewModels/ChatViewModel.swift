@@ -91,6 +91,33 @@ class ChatViewModel: ObservableObject {
         isSendingPhoto = false
     }
 
+    func startChat(for post: Post) async -> String? {
+        do {
+            let userId = AppConfig.placeholderUserId
+            if let existing = try await chatService.fetchChat(forPostId: post.id ?? "", userId: userId) {
+                return existing.id
+            }
+            let now = Timestamp()
+            let chat = Chat(
+                postId: post.id ?? "",
+                userId: userId,
+                policeId: "campus-police-001",
+                itemTitle: post.title,
+                itemImageUrl: post.primaryImageUrl,
+                lastMessage: "",
+                lastMessageAt: now,
+                status: .active,
+                createdAt: now,
+                updatedAt: now
+            )
+            let chatId = try await chatService.createChat(chat)
+            return chatId
+        } catch {
+            errorMessage = error.localizedDescription
+            return nil
+        }
+    }
+
     func stopListening() {
         cancellables.removeAll()
     }

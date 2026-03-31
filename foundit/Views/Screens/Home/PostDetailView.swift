@@ -7,12 +7,21 @@
 
 import SwiftUI
 import MapKit
+import FirebaseFirestore
 
 struct PostDetailView: View {
     let item: Post
+    var chatViewModel: ChatViewModel?
     
     @StateObject private var viewModel = PostViewModel()
+    @StateObject private var fallbackChatViewModel = ChatViewModel()
     @State private var similarItems: [Post] = []
+    @State private var activeChatId: String?
+    @State private var isCreatingChat = false
+    
+    private var resolvedChatViewModel: ChatViewModel {
+        chatViewModel ?? fallbackChatViewModel
+    }
     
     var body: some View {
         ScrollView(showsIndicators: false) {
@@ -151,9 +160,38 @@ struct PostDetailView: View {
                 .padding(.top, 20)
                 
                 Button {
-                       // TODO: handle action
-                   } label: {
-                       Text("Take Action")
+                    guard !isCreatingChat else { return }
+                    isCreatingChat = true
+                    Task {
+                        let chatService = ChatService()
+                        let userId = AppConfig.placeholderUserId
+                        do {
+                            if let existing = try await chatService.fetchChat(forPostId: item.id ?? "", userId: userId) {
+                                activeChatId = existing.id
+                            } else {
+                                let now = Timestamp()
+                                let chat = Chat(
+                                    postId: item.id ?? "",
+                                    userId: userId,
+                                    policeId: "campus-police-001",
+                                    itemTitle: item.title,
+                                    itemImageUrl: item.primaryImageUrl,
+                                    lastMessage: "",
+                                    lastMessageAt: now,
+                                    status: .active,
+                                    createdAt: now,
+                                    updatedAt: now
+                                )
+                                let chatId = try await chatService.createChat(chat)
+                                activeChatId = chatId
+                            }
+                        } catch {
+                            print("[TakeAction] Error: \(error)")
+                        }
+                        isCreatingChat = false
+                    }
+                } label: {
+                    Text(isCreatingChat ? "Opening Chat..." : "Take Action")
                            .font(.system(size: 16, weight: .semibold))
                            .foregroundStyle(.white)
                            .frame(maxWidth: .infinity)
@@ -200,6 +238,10 @@ struct PostDetailView: View {
         .navigationTitle("Report Details")
         .navigationBarTitleDisplayMode(.inline)
         .background(Color(.systemGroupedBackground))
+        .navigationDestination(item: $activeChatId) { chatId in
+            ChatDetailView(chatId: chatId, contactName: "Campus Police")
+                .environmentObject(resolvedChatViewModel)
+        }
         .task {
             print("Fetching similar posts for: \(item.title) (Category: \(item.category))")
             similarItems = await viewModel.fetchSimilarPosts(to: item, limit: 6)

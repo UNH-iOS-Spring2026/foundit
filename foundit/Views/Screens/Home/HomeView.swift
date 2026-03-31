@@ -10,6 +10,7 @@ import SwiftUI
 struct HomeView: View {
     @StateObject private var viewModel = HomeViewModel()
     @EnvironmentObject var postViewModel: PostViewModel
+    @EnvironmentObject var chatViewModel: ChatViewModel
     @Binding var searchText: String
     @State private var navigateToReport: Bool = false
     @State private var showFilterSheet: Bool = false
@@ -113,7 +114,7 @@ struct HomeView: View {
                     LazyVGrid(columns: columns, spacing: 12) {
                         ForEach(viewModel.filteredItems) { item in
                             NavigationLink {
-                                PostDetailView(item: item)
+                                PostDetailView(item: item, chatViewModel: chatViewModel)
                             } label: {
                                 ItemCardView(
                                     item: item,
@@ -167,6 +168,7 @@ struct HomeView: View {
         .fullScreenCover(isPresented: $showAllItems) {
             AllItemsView()
                 .environmentObject(postViewModel)
+                .environmentObject(chatViewModel)
         }
         .onChange(of: searchText) { _, newValue in
             viewModel.searchText = newValue

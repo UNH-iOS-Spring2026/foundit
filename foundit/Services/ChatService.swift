@@ -16,6 +16,15 @@ class ChatService {
         return ref.documentID
     }
 
+    func fetchChat(forPostId postId: String, userId: String) async throws -> Chat? {
+        let snapshot = try await db.collection(collection)
+            .whereField("postId", isEqualTo: postId)
+            .whereField("userId", isEqualTo: userId)
+            .limit(to: 1)
+            .getDocuments()
+        return try snapshot.documents.first.map { try $0.data(as: Chat.self) }
+    }
+
     func fetchChats(forUserId userId: String) async throws -> [Chat] {
         let snapshot = try await db.collection(collection)
             .whereField("userId", isEqualTo: userId)

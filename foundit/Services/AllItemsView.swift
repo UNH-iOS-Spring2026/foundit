@@ -8,6 +8,7 @@ import SwiftUI
 struct AllItemsView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject var postViewModel: PostViewModel
+    @EnvironmentObject var chatViewModel: ChatViewModel
     @StateObject private var viewModel = HomeViewModel()
     
     @State private var selectedFilter: PostType? = nil
@@ -100,7 +101,7 @@ struct AllItemsView: View {
                         LazyVGrid(columns: columns, spacing: 12) {
                             ForEach(filteredItems) { item in
                                 NavigationLink {
-                                    PostDetailView(item: item)
+                                    PostDetailView(item: item, chatViewModel: chatViewModel)
                                 } label: {
                                     ItemCardView(item: item)
                                 }
@@ -158,4 +159,5 @@ struct FilterChip: View {
 #Preview {
     AllItemsView()
         .environmentObject(PostViewModel())
+        .environmentObject(ChatViewModel())
 }
