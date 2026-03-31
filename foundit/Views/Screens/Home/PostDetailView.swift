@@ -10,7 +10,7 @@ import MapKit
 
 struct PostDetailView: View {
     let item: Post
-    
+
     @StateObject private var viewModel = PostViewModel()
     @State private var similarItems: [Post] = []
     
@@ -66,25 +66,17 @@ struct PostDetailView: View {
                     Text("Reported by")
                         .font(.system(size: 15, weight: .semibold))
                         .foregroundStyle(.primary)
-                    
+
                     HStack(spacing: 10) {
-                        if let avatarUrl = item.reporterInfo?.avatarUrl, UIImage(named: avatarUrl) != nil {
-                            Image(avatarUrl)
-                                .resizable()
-                                .scaledToFill()
-                                .frame(width: 36, height: 36)
-                                .clipShape(Circle())
-                        } else {
-                            Circle()
-                                .fill(Color(.systemGray4))
-                                .frame(width: 36, height: 36)
-                                .overlay(
-                                    Image(systemName: "person.fill")
-                                        .foregroundStyle(Color(.systemGray))
-                                )
-                        }
-                        
-                        Text(item.reporterInfo?.name ?? "Unknown")
+                        Circle()
+                            .fill(Color(.systemGray4))
+                            .frame(width: 36, height: 36)
+                            .overlay(
+                                Image(systemName: "person.fill")
+                                    .foregroundStyle(Color(.systemGray))
+                            )
+
+                        Text(viewModel.reporterName)
                             .font(.system(size: 15))
                             .foregroundStyle(.primary)
                     }
@@ -201,9 +193,8 @@ struct PostDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .background(Color(.systemGroupedBackground))
         .task {
-            print("Fetching similar posts for: \(item.title) (Category: \(item.category))")
+            await viewModel.fetchReporterName(userId: item.createdBy)
             similarItems = await viewModel.fetchSimilarPosts(to: item, limit: 6)
-            print("Similar items count: \(similarItems.count)")
         }
     }
 }

@@ -20,6 +20,7 @@ final class AuthViewModel: ObservableObject {
 	@Published var currentUser: User?
 
 	private var authStateListener: AuthStateDidChangeListenerHandle?
+	private let userService = UserService()
 
 	var currentUserId: String {
 		Auth.auth().currentUser?.uid ?? ""
@@ -50,10 +51,7 @@ final class AuthViewModel: ObservableObject {
 
 	private func fetchUser(uid: String) async {
 		do {
-			let snapshot = try await Firestore.firestore().collection("users").document(uid).getDocument()
-			if snapshot.exists {
-				self.currentUser = try snapshot.data(as: User.self)
-			}
+			self.currentUser = try await userService.fetchUser(uid: uid)
 		} catch {
 			print("Error fetching user: \(error.localizedDescription)")
 		}
