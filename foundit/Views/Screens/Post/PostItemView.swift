@@ -13,6 +13,7 @@ import FirebaseFirestore
 struct PostItemView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject var postViewModel: PostViewModel
+    @EnvironmentObject private var tabRouter: TabRouter
     
     // Edit mode support
     var postToEdit: Post? = nil
@@ -32,6 +33,8 @@ struct PostItemView: View {
     @State private var showLocationPicker: Bool = false
     @State private var selectedCoordinate: CLLocationCoordinate2D? = nil
     @State private var existingPhotoUrls: [String] = []
+    @State private var showSuccessAlert = false
+    @State private var showErrorAlert = false
     
     
     let categories = ["Books", "Electronics", "Accessories", "Clothing", "Keys", "Wallet", "Other"]
@@ -320,9 +323,30 @@ struct PostItemView: View {
         .onAppear {
             loadPostData()
         }
-        //        .background(Color(.systemGroupedBackground))
+        .overlay {
+            if postViewModel.isLoading {
+                ZStack {
+                    Color.black.opacity(0.3).ignoresSafeArea()
+                    ProgressView("Submitting...")
+                        .padding(24)
+                        .background(.regularMaterial)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                }
+            }
+        }
+        .allowsHitTesting(!postViewModel.isLoading)
+        .alert("Success", isPresented: $showSuccessAlert) {
+            Button("OK") { dismiss() }
+        } message: {
+            Text(isEditMode ? "Your post has been updated." : "Your report has been submitted.")
+        }
+        .alert("Error", isPresented: $showErrorAlert) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text(postViewModel.errorMessage ?? "Something went wrong. Please try again.")
+        }
     }
-    
+
     // MARK: - Helper Functions
     private var isFormValid: Bool {
         guard let type = selectedType,
@@ -356,21 +380,22 @@ struct PostItemView: View {
               let coordinate = selectedCoordinate else {
             return
         }
-        
+
+        postViewModel.didSucceed = false
+
         Task {
             var photoData: [Data] = []
             if let image = selectedImage,
                let data = image.jpegData(compressionQuality: 0.7) {
                 photoData.append(data)
             }
-            
+
             let geoPoint = GeoPoint(
                 latitude: coordinate.latitude,
                 longitude: coordinate.longitude
             )
-            
+
             if isEditMode, let postId = postToEdit?.id {
-                // Update existing post
                 await postViewModel.updatePost(
                     id: postId,
                     title: title,
@@ -383,7 +408,6 @@ struct PostItemView: View {
                     existingPhotoUrls: existingPhotoUrls
                 )
             } else {
-                // Create new post
                 await postViewModel.createPost(
                     title: title,
                     description: descriptionText,
@@ -394,8 +418,13 @@ struct PostItemView: View {
                     photoData: photoData
                 )
             }
-            
-            dismiss()
+
+            if postViewModel.didSucceed {
+                showSuccessAlert = true
+                
+            } else {
+                showErrorAlert = true
+            }
         }
     }
 }
@@ -454,5 +483,7 @@ private struct CheckboxRow: View {
 #Preview {
     NavigationStack {
         PostItemView()
+            .environmentObject(PostViewModel())
+            .environmentObject(TabRouter())
     }
 }

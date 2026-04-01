@@ -14,6 +14,7 @@ class PostViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var errorMessage: String?
     @Published var reporterName: String = "Loading..."
+    @Published var didSucceed = false
 
     private let postService = PostService()
     private let storageService = StorageService()
@@ -94,6 +95,7 @@ class PostViewModel: ObservableObject {
             )
             _ = try await postService.createPost(post)
             await fetchPosts()
+            didSucceed = true
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -163,6 +165,7 @@ class PostViewModel: ObservableObject {
             
             try await postService.updatePost(id: id, post: updatedPost)
             await fetchPosts()
+            didSucceed = true
         } catch {
             errorMessage = error.localizedDescription
         }
