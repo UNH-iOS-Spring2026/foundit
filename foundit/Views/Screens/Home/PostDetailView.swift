@@ -7,12 +7,16 @@
 
 import SwiftUI
 import MapKit
+import FirebaseFirestore
 
 struct PostDetailView: View {
     let item: Post
 
     @StateObject private var viewModel = PostViewModel()
+    @StateObject private var chatViewModel = ChatViewModel()
     @State private var similarItems: [Post] = []
+    @State private var navigateToChatId: String?
+    @State private var isCreatingChat = false
     
     var body: some View {
         ScrollView(showsIndicators: false) {
@@ -143,18 +147,48 @@ struct PostDetailView: View {
                 .padding(.top, 20)
                 
                 Button {
-                       // TODO: handle action
-                   } label: {
-                       Text("Take Action")
-                           .font(.system(size: 16, weight: .semibold))
-                           .foregroundStyle(.white)
-                           .frame(maxWidth: .infinity)
-                           .padding(.vertical, 16)
-                           .background(Color(red: 0.55, green: 0.60, blue: 0.85))
-                           .clipShape(RoundedRectangle(cornerRadius: 14))
-                   }
-                   .padding(.horizontal, 16)
-                   .padding(.top, 24)
+                    Task {
+                        isCreatingChat = true
+                        let now = Timestamp()
+                        let newChat = Chat(
+                            postId: item.id ?? "",
+                            userId: AppConfig.currentUserId,
+                            policeId: "campus-police",
+                            itemTitle: item.title,
+                            itemImageUrl: item.photoUrls.first,
+                            lastMessage: "",
+                            lastMessageAt: now,
+                            createdAt: now,
+                            updatedAt: now
+                        )
+                        do {
+                            let chatId = try await ChatService().createChat(newChat)
+                            navigateToChatId = chatId
+                        } catch {
+                            chatViewModel.errorMessage = error.localizedDescription
+                        }
+                        isCreatingChat = false
+                    }
+                } label: {
+                    if isCreatingChat {
+                        ProgressView()
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 16)
+                            .background(Color(red: 0.55, green: 0.60, blue: 0.85))
+                            .clipShape(RoundedRectangle(cornerRadius: 14))
+                    } else {
+                        Text("Take Action")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 16)
+                            .background(Color(red: 0.55, green: 0.60, blue: 0.85))
+                            .clipShape(RoundedRectangle(cornerRadius: 14))
+                    }
+                }
+                .disabled(isCreatingChat)
+                .padding(.horizontal, 16)
+                .padding(.top, 24)
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Similar Items")
                         .font(.system(size: 15, weight: .semibold))
@@ -192,6 +226,10 @@ struct PostDetailView: View {
         .navigationTitle("Report Details")
         .navigationBarTitleDisplayMode(.inline)
         .background(Color(.systemGroupedBackground))
+        .navigationDestination(item: $navigateToChatId) { chatId in
+            ChatDetailView(chatId: chatId, contactName: "Campus Police")
+                .environmentObject(chatViewModel)
+        }
         .task {
             await viewModel.fetchReporterName(userId: item.createdBy)
             similarItems = await viewModel.fetchSimilarPosts(to: item, limit: 6)
