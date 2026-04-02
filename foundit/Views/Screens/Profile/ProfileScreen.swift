@@ -15,11 +15,11 @@ struct ProfileScreen: View {
 	@State private var showLogoutAlert = false
 
 	private var userName: String {
-		authVM.currentUser?.displayName ?? "User"
+		Auth.auth().currentUser?.displayName ?? "User"
 	}
 
 	private var userEmail: String {
-		Auth.auth().currentUser?.email ?? "No email available"
+		authVM.currentUserEmail.isEmpty ? "No email available" : authVM.currentUserEmail
 	}
 
 	var body: some View {
@@ -52,23 +52,28 @@ struct ProfileScreen: View {
 						Image(systemName: "bell")
 							.frame(width: 24)
 							.foregroundColor(.primary)
+
 						Text("Push Notifications")
 							.font(.body)
+
 						Spacer()
+
 						Toggle("", isOn: $pushNotificationsEnabled)
 							.labelsHidden()
 					}
 					.padding(.horizontal)
 					.padding(.vertical, 14)
 
-					Button(action: {
+					Button {
 						showLogoutAlert = true
-					}) {
+					} label: {
 						HStack {
 							Image(systemName: "rectangle.portrait.and.arrow.right")
 								.frame(width: 24)
+
 							Text("Logout")
 								.font(.body)
+
 							Spacer()
 						}
 						.foregroundColor(.primary)
@@ -82,10 +87,10 @@ struct ProfileScreen: View {
 			.navigationTitle("Profile")
 			.navigationBarTitleDisplayMode(.inline)
 			.alert("Logout", isPresented: $showLogoutAlert) {
-				Button("Cancel", role: .cancel) {}
+				Button("Cancel", role: .cancel) { }
 
 				Button("Logout", role: .destructive) {
-					authVM.logout()
+					authVM.signOut()
 				}
 			} message: {
 				Text("Are you sure you want to log out?")
@@ -104,10 +109,13 @@ struct ProfileMenuItem: View {
 				Image(systemName: icon)
 					.frame(width: 24)
 					.foregroundColor(.primary)
+
 				Text(title)
 					.font(.body)
 					.foregroundColor(.primary)
+
 				Spacer()
+
 				Image(systemName: "chevron.right")
 					.font(.caption)
 					.foregroundColor(.secondary)
@@ -121,6 +129,6 @@ struct ProfileMenuItem: View {
 #Preview {
 	NavigationStack {
 		ProfileScreen()
+			.environmentObject(AuthViewModel())
 	}
-	.environmentObject(AuthViewModel())
 }
