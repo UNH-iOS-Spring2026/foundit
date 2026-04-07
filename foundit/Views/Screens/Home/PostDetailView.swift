@@ -17,6 +17,7 @@ struct PostDetailView: View {
     @State private var similarItems: [Post] = []
     @State private var navigateToChatId: String?
     @State private var isCreatingChat = false
+    @State private var showQRCode = false
     
     var body: some View {
         ScrollView(showsIndicators: false) {
@@ -226,6 +227,25 @@ struct PostDetailView: View {
         .navigationTitle("Report Details")
         .navigationBarTitleDisplayMode(.inline)
         .background(Color(.systemGroupedBackground))
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button {
+                    showQRCode = true
+                } label: {
+                    Image(systemName: "qrcode")
+                        .font(.system(size: 16))
+                        .foregroundStyle(Color(red: 0.55, green: 0.60, blue: 0.85))
+                }
+            }
+        }
+        .sheet(isPresented: $showQRCode) {
+            QRCodeDrawerView(
+                itemCode: item.id ?? "N/A",
+                itemTitle: item.title
+            )
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+        }
         .navigationDestination(item: $navigateToChatId) { chatId in
             ChatDetailView(chatId: chatId, contactName: "Campus Police")
                 .environmentObject(chatViewModel)
