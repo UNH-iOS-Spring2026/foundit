@@ -408,7 +408,8 @@ struct PostItemView: View {
                     location: geoPoint,
                     locationText: location,
                     photoData: photoData,
-                    existingPhotoUrls: existingPhotoUrls
+                    existingPhotoUrls: existingPhotoUrls,
+                    reporterInfo: postToEdit?.reporterInfo  // Preserve reporter info
                 )
             } else {
                 await postViewModel.createPost(

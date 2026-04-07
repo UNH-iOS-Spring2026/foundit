@@ -22,6 +22,14 @@ struct PostDetailView: View {
         chatViewModel ?? fallbackChatViewModel
     }
     
+    // Get reporter name from reporterInfo if available, otherwise use fetched name
+    private var reporterName: String {
+        if let reporterInfo = item.reporterInfo {
+            return reporterInfo.name
+        }
+        return viewModel.reporterName
+    }
+    
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: 0) {
@@ -84,7 +92,7 @@ struct PostDetailView: View {
                                     .foregroundStyle(Color(.systemGray))
                             )
 
-                        Text(viewModel.reporterName)
+                        Text(reporterName)
                             .font(.system(size: 15))
                             .foregroundStyle(.primary)
                     }
@@ -243,7 +251,10 @@ struct PostDetailView: View {
                 .environmentObject(resolvedChatViewModel)
         }
         .task {
-            await viewModel.fetchReporterName(userId: item.createdBy)
+            // Only fetch reporter name if not already in reporterInfo
+            if item.reporterInfo == nil {
+                await viewModel.fetchReporterName(userId: item.createdBy)
+            }
             similarItems = await viewModel.fetchSimilarPosts(to: item, limit: 6)
         }
     }

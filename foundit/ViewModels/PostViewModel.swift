@@ -31,11 +31,12 @@ class PostViewModel: ObservableObject {
         isLoading = false
     }
 
-    func fetchUserPosts(userId: String = AppConfig.placeholderUserId) async {
+    func fetchUserPosts(userId: String? = nil) async {
         isLoading = true
         errorMessage = nil
         do {
-            userPosts = try await postService.fetchPostsByUser(userId: userId)
+            let resolvedUserId = userId ?? AppConfig.placeholderUserId
+            userPosts = try await postService.fetchPostsByUser(userId: resolvedUserId)
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -60,7 +61,7 @@ class PostViewModel: ObservableObject {
         location: GeoPoint,
         locationText: String,
         photoData: [Data] = [],
-        createdBy: String = AppConfig.placeholderUserId
+        createdBy: String? = nil
     ) async {
         isLoading = true
         errorMessage = nil
@@ -80,6 +81,21 @@ class PostViewModel: ObservableObject {
             }
 
             let now = Timestamp()
+            
+            // Resolve the user ID
+            let resolvedUserId = createdBy ?? AppConfig.placeholderUserId
+            
+            // Fetch reporter information
+            var reporterInfo: Reporter? = nil
+            if !resolvedUserId.isEmpty {
+                do {
+                    let user = try await userService.fetchUser(uid: resolvedUserId)
+                    reporterInfo = Reporter(name: user.displayName, avatarUrl: nil)
+                } catch {
+                    // If we can't fetch user info, continue without it
+                }
+            }
+            
             let post = Post(
                 type: type,
                 title: title,
@@ -89,10 +105,12 @@ class PostViewModel: ObservableObject {
                 lastSeenLocation: location,
                 lastSeenLocationText: locationText,
                 status: .open,
-                createdBy: createdBy,
+                createdBy: resolvedUserId,
+                reporterInfo: reporterInfo,
                 createdAt: now,
                 updatedAt: now
             )
+            
             _ = try await postService.createPost(post)
             await fetchPosts()
             didSucceed = true
@@ -103,6 +121,11 @@ class PostViewModel: ObservableObject {
     }
 
     func fetchReporterName(userId: String) async {
+        guard !userId.isEmpty else {
+            reporterName = "Unknown"
+            return
+        }
+        
         do {
             let user = try await userService.fetchUser(uid: userId)
             reporterName = user.displayName
@@ -130,7 +153,8 @@ class PostViewModel: ObservableObject {
         location: GeoPoint,
         locationText: String,
         photoData: [Data] = [],
-        existingPhotoUrls: [String] = []
+        existingPhotoUrls: [String] = [],
+        reporterInfo: Reporter? = nil
     ) async {
         isLoading = true
         errorMessage = nil
@@ -159,6 +183,7 @@ class PostViewModel: ObservableObject {
                 lastSeenLocationText: locationText,
                 status: .open,
                 createdBy: AppConfig.placeholderUserId,
+                reporterInfo: reporterInfo,  // Preserve reporter info
                 createdAt: Timestamp(), // This will be ignored in merge
                 updatedAt: Timestamp()
             )
