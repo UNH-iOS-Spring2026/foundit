@@ -19,6 +19,9 @@ struct PostItemView: View {
     var postToEdit: Post? = nil
     var isEditMode: Bool { postToEdit != nil }
     
+    // Callback when post is successfully created
+    var onPostCreated: (() -> Void)? = nil
+    
     @State private var selectedType: PostType? = nil
     @State private var selectedCategory: String = "Books"
     @State private var selectedDate: Date = Date()
@@ -421,7 +424,10 @@ struct PostItemView: View {
 
             if postViewModel.didSucceed {
                 showSuccessAlert = true
-                
+                // Notify that a post was created (only for new posts, not edits)
+                if !isEditMode {
+                    onPostCreated?()
+                }
             } else {
                 showErrorAlert = true
             }

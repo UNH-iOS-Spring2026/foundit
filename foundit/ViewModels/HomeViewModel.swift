@@ -19,6 +19,10 @@ final class HomeViewModel: ObservableObject {
     
     // MARK: Services
     private let postService = PostService()
+    
+    // MARK: Cache management
+    private var lastFetchTime: Date?
+    private let cacheValidityDuration: TimeInterval = 30 // Cache valid for 30 seconds
  
     // MARK: filtered items
     var filteredItems: [Post] {
@@ -42,11 +46,20 @@ final class HomeViewModel: ObservableObject {
  
     // MARK: Load items from backend
     func loadItems() async {
+        // Check if cache is still valid
+        if let lastFetch = lastFetchTime,
+           Date().timeIntervalSince(lastFetch) < cacheValidityDuration,
+           !items.isEmpty {
+            // Use cached data
+            return
+        }
+        
         isLoading = true
         errorMessage = nil
         
         do {
             items = try await postService.fetchPosts()
+            lastFetchTime = Date()
         } catch {
             errorMessage = error.localizedDescription
             items = []
@@ -55,8 +68,9 @@ final class HomeViewModel: ObservableObject {
         isLoading = false
     }
     
-    // MARK: Refresh items
+    // MARK: Refresh items (force refresh, ignore cache)
     func refreshItems() async {
+        lastFetchTime = nil // Invalidate cache
         await loadItems()
     }
     

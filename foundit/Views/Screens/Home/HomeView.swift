@@ -22,6 +22,7 @@ struct HomeView: View {
     @State private var postToEdit: Post? = nil
     @State private var navigateToEdit: Bool = false
     @State private var showAllItems: Bool = false
+    @State private var shouldRefreshAfterPost: Bool = false
 
     
     private let columns = [
@@ -146,7 +147,9 @@ struct HomeView: View {
             Spacer()
         }
         .navigationDestination(isPresented: $navigateToReport) {
-            PostItemView()
+            PostItemView(onPostCreated: {
+                shouldRefreshAfterPost = true
+            })
                 .environmentObject(postViewModel)
         }
         .navigationDestination(isPresented: $navigateToEdit) {
@@ -177,9 +180,10 @@ struct HomeView: View {
         }
         .onChange(of: navigateToReport) { oldValue, newValue in
             // When returning from PostItemView (navigateToReport changes from true to false)
-            if oldValue == true && newValue == false {
+            if oldValue == true && newValue == false && shouldRefreshAfterPost {
                 Task {
                     await viewModel.refreshItems()
+                    shouldRefreshAfterPost = false
                 }
             }
         }
