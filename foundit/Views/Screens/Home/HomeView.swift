@@ -135,7 +135,7 @@ struct HomeView: View {
                             .buttonStyle(.plain)
                         }
                     }
-                    .padding(.horizontal, 16)
+                    .padding(.horizontal, 12)
                     .padding(.top, 8)
                     .padding(.bottom, 20)
                 }

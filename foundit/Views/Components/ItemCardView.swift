@@ -82,7 +82,7 @@ struct ItemCardView: View {
                 case .success(let image):
                     image
                         .resizable()
-                        .scaledToFill()
+//                        .scaledToFill()
                         .frame(maxWidth: .infinity)
                         .frame(height: 130)
                         .clipped()
