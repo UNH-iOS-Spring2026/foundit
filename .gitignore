@@ -12,4 +12,33 @@ DerivedData/
 # macOS
 .DS_Store
 
-GoogleService-Info.plistGoogleService-Info.plist
+## Coverage / SCM metadata
+*.xccheckout
+*.xcscmblueprint
+*.xccovreport
+*.xccovarchive
+
+## Debug / release artifacts
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+## Swift Package Manager (uncomment if you use SPM)
+# .build/
+# Packages/
+# Package.resolved
+
+## CocoaPods (uncomment if you use CocoaPods)
+# Pods/
+
+## Carthage (uncomment if you use Carthage)
+# Carthage/Build/
+
+## fastlane (uncomment if you use fastlane)
+# fastlane/report.xml
+# fastlane/Preview.html
+# fastlane/screenshots/**
+# fastlane/test_output/**
+
+## Secrets / config (only ignore if you do NOT want it committed)
+GoogleService-Info.plist

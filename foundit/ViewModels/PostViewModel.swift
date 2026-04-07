@@ -13,9 +13,11 @@ class PostViewModel: ObservableObject {
     @Published var userPosts: [Post] = []
     @Published var isLoading = false
     @Published var errorMessage: String?
+    @Published var reporterName: String = "Loading..."
 
     private let postService = PostService()
     private let storageService = StorageService()
+    private let userService = UserService()
 
     func fetchPosts(type: PostType? = nil) async {
         isLoading = true
@@ -96,6 +98,15 @@ class PostViewModel: ObservableObject {
             errorMessage = error.localizedDescription
         }
         isLoading = false
+    }
+
+    func fetchReporterName(userId: String) async {
+        do {
+            let user = try await userService.fetchUser(uid: userId)
+            reporterName = user.displayName
+        } catch {
+            reporterName = "Unknown"
+        }
     }
 
     func deletePost(id: String) async {
