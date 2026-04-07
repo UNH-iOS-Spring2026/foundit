@@ -25,21 +25,21 @@ struct MainTabView: View {
             }
 
             NavigationStack {
-                ReportScreen()
-            }
-            .tag(AppTab.report)
-            .tabItem {
-                Image(systemName: "plus")
-                Text("Report")
-            }
-
-            NavigationStack {
                 MessageScreen()
             }
             .tag(AppTab.chat)
             .tabItem {
                 Image(systemName: "message")
                 Text("Chat")
+            }
+
+            NavigationStack {
+                MyPostsView()
+            }
+            .tag(AppTab.myPosts)
+            .tabItem {
+                Image(systemName: "doc.text")
+                Text("My Posts")
             }
 
             NavigationStack {

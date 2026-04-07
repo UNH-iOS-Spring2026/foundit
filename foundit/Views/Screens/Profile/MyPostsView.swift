@@ -9,6 +9,7 @@ import FirebaseAuth
 struct MyPostsView: View {
     @EnvironmentObject var authVM: AuthViewModel
     @EnvironmentObject var postViewModel: PostViewModel
+    @EnvironmentObject var chatViewModel: ChatViewModel
 
     @State private var posts: [Post] = []
     @State private var isLoading = false
@@ -130,7 +131,7 @@ struct MyPostsView: View {
                     LazyVGrid(columns: columns, spacing: 12) {
                         ForEach(filteredPosts) { item in
                             NavigationLink {
-                                PostDetailView(item: item)
+                                PostDetailView(item: item, chatViewModel: chatViewModel)
                             } label: {
                                 ItemCardView(
                                     item: item,
