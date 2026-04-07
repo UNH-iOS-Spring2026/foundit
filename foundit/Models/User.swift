@@ -13,4 +13,5 @@ struct User: Identifiable, Codable {
     var isAdmin: Bool
     var createdAt: Timestamp
     var updatedAt: Timestamp
+    var nameChangedAt: Timestamp?
 }

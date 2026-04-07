@@ -15,7 +15,7 @@ struct ProfileScreen: View {
 	@State private var showLogoutAlert = false
 
 	private var userName: String {
-		Auth.auth().currentUser?.displayName ?? "User"
+		authVM.currentDisplayName.isEmpty ? "User" : authVM.currentDisplayName
 	}
 
 	private var userEmail: String {
@@ -44,9 +44,15 @@ struct ProfileScreen: View {
 				Divider()
 
 				VStack(spacing: 0) {
-					ProfileMenuItem(icon: "globe", title: "My post")
-					ProfileMenuItem(icon: "square.and.pencil", title: "Edit Profile")
-					ProfileMenuItem(icon: "lock", title: "Change Password")
+					ProfileMenuItem(icon: "globe", title: "My post") { MyPostsView() }
+					ProfileMenuItem(icon: "square.and.pencil", title: "Edit Profile") {
+						EditProfileView()
+					}
+					if !authVM.isGoogleUser {
+						ProfileMenuItem(icon: "lock", title: "Change Password") {
+							ChangePasswordView()
+						}
+					}
 
 					HStack {
 						Image(systemName: "bell")
@@ -99,12 +105,13 @@ struct ProfileScreen: View {
 	}
 }
 
-struct ProfileMenuItem: View {
+struct ProfileMenuItem<Destination: View>: View {
 	let icon: String
 	let title: String
+	@ViewBuilder let destination: () -> Destination
 
 	var body: some View {
-		NavigationLink(destination: EmptyView()) {
+		NavigationLink(destination: destination()) {
 			HStack {
 				Image(systemName: icon)
 					.frame(width: 24)
