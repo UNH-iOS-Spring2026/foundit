@@ -83,6 +83,9 @@ struct ItemCardView: View {
                     image
                         .resizable()
                         .scaledToFill()
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 130)
+                        .clipped()
                 case .failure:
                     placeholderImage
                 default:
@@ -99,16 +102,9 @@ struct ItemCardView: View {
     private var placeholderImage: some View {
         ZStack {
             Color(.systemGray5)
-            // Fallback to first photo URL as asset name for mock data
-            if let imageName = item.photoUrls.first {
-                Image(imageName)
-                    .resizable()
-                    .scaledToFill()
-            } else {
-                Image(systemName: "photo")
-                    .font(.system(size: 36))
-                    .foregroundStyle(Color(.systemGray2))
-            }
+            Image(systemName: "photo")
+                .font(.system(size: 36))
+                .foregroundStyle(Color(.systemGray2))
         }
     }
 }

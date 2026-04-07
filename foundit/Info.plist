@@ -4,5 +4,17 @@
 <dict>
 	<key>UIDesignRequiresCompatibility</key>
 	<true/>
+
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.589920240680-mtf8sb3kieobsp0asrtn5ocl2a6se45g</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

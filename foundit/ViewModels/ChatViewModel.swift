@@ -66,22 +66,22 @@ class ChatViewModel: ObservableObject {
     func sendPhoto(chatId: String, imageData: Data, senderId: String = AppConfig.placeholderUserId) async {
         isSendingPhoto = true
         do {
-            // Compress and encode as a base64 data URL to avoid Firebase Storage dependency
             guard let uiImage = UIImage(data: imageData),
                   let jpegData = uiImage.jpegData(compressionQuality: 0.5) else {
                 errorMessage = "Failed to process image"
                 isSendingPhoto = false
                 return
             }
-            let base64String = jpegData.base64EncodedString()
-            let dataUrl = "data:image/jpeg;base64,\(base64String)"
+
+            let path = "chats/\(chatId)/\(UUID().uuidString).jpg"
+            let downloadUrl = try await StorageService().uploadImage(data: jpegData, path: path)
 
             let message = Message(
                 senderId: senderId,
                 senderRole: .student,
                 type: .photo,
                 text: "",
-                photoUrl: dataUrl,
+                photoUrl: downloadUrl,
                 sentAt: Timestamp()
             )
             try await chatService.sendMessage(chatId: chatId, message: message)

@@ -10,13 +10,15 @@ import SwiftUI
 struct MainTabView: View {
     @StateObject private var postViewModel = PostViewModel()
     @StateObject private var chatViewModel = ChatViewModel()
+    @StateObject private var tabRouter = TabRouter()
     @State private var searchText: String = ""
 
     var body: some View {
-        TabView {
+        TabView(selection: $tabRouter.selectedTab) {
             NavigationStack {
                 HomeView(searchText: $searchText)
             }
+            .tag(AppTab.home)
             .tabItem {
                 Image(systemName: "house")
                 Text("Home")
@@ -25,6 +27,7 @@ struct MainTabView: View {
             NavigationStack {
                 ReportScreen()
             }
+            .tag(AppTab.report)
             .tabItem {
                 Image(systemName: "plus")
                 Text("Report")
@@ -33,6 +36,7 @@ struct MainTabView: View {
             NavigationStack {
                 MessageScreen()
             }
+            .tag(AppTab.chat)
             .tabItem {
                 Image(systemName: "message")
                 Text("Chat")
@@ -41,6 +45,7 @@ struct MainTabView: View {
             NavigationStack {
                 ProfileScreen()
             }
+            .tag(AppTab.profile)
             .tabItem {
                 Image(systemName: "person")
                 Text("Profile")
@@ -48,6 +53,7 @@ struct MainTabView: View {
         }
         .environmentObject(postViewModel)
         .environmentObject(chatViewModel)
+        .environmentObject(tabRouter)
     }
 }
 

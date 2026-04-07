@@ -2,90 +2,68 @@
 //  AuthViewModel.swift
 //  foundit
 //
-//	Source of inspiration for UI: ChatGPT (OpenAI)
-//  Created by Ashish Khadka on 26/03/2026.
-
 
 import Foundation
 import Combine
 import FirebaseAuth
 import FirebaseFirestore
+import FirebaseCore
+import GoogleSignIn
+import UIKit
 
 @MainActor
 final class AuthViewModel: ObservableObject {
+	@Published var isAuthenticated = false
 	@Published var isLoading = false
 	@Published var errorMessage = ""
 	@Published var resetMessage = ""
-	@Published var isAuthenticated = false
-	@Published var currentUser: User?
+	@Published var currentUserEmail = ""
 
-	private var authStateListener: AuthStateDidChangeListenerHandle?
-	private let userService = UserService()
+	private let db = Firestore.firestore()
+	private var authStateHandle: AuthStateDidChangeListenerHandle?
 
-	var currentUserId: String {
-		Auth.auth().currentUser?.uid ?? ""
+	var currentUser: FirebaseAuth.User? {
+		Auth.auth().currentUser
+	}
+	
+	func logout() {
+		signOut()
 	}
 
 	init() {
-		isAuthenticated = Auth.auth().currentUser != nil
-		authStateListener = Auth.auth().addStateDidChangeListener { [weak self] _, user in
-			Task { @MainActor in
-				self?.isAuthenticated = user != nil
-				if let user = user {
-					await self?.fetchUser(uid: user.uid)
-				} else {
-					self?.currentUser = nil
-				}
-			}
+		if let user = Auth.auth().currentUser {
+			isAuthenticated = true
+			currentUserEmail = user.email ?? ""
+		} else {
+			isAuthenticated = false
+			currentUserEmail = ""
 		}
-		if let uid = Auth.auth().currentUser?.uid {
-			Task { await fetchUser(uid: uid) }
+
+		authStateHandle = Auth.auth().addStateDidChangeListener { [weak self] _, user in
+			guard let self else { return }
+			Task { @MainActor in
+				self.isAuthenticated = (user != nil)
+				self.currentUserEmail = user?.email ?? ""
+			}
 		}
 	}
 
 	deinit {
-		if let handle = authStateListener {
-			Auth.auth().removeStateDidChangeListener(handle)
+		if let authStateHandle {
+			Auth.auth().removeStateDidChangeListener(authStateHandle)
 		}
 	}
 
-	private func fetchUser(uid: String) async {
-		do {
-			self.currentUser = try await userService.fetchUser(uid: uid)
-		} catch {
-			print("Error fetching user: \(error.localizedDescription)")
-		}
-	}
-
-	private func createUserDocument(uid: String, displayName: String, email: String) async {
-		let now = Timestamp()
-		let user = User(
-			id: uid,
-			displayName: displayName,
-			email: email,
-			isAdmin: false,
-			createdAt: now,
-			updatedAt: now
-		)
-		do {
-			try Firestore.firestore().collection("users").document(uid).setData(from: user)
-			self.currentUser = user
-		} catch {
-			print("Error creating user document: \(error.localizedDescription)")
-		}
-	}
-
+	// MARK: - Login
 	func login(email: String, password: String) async {
 		errorMessage = ""
 		resetMessage = ""
 
-		guard !email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-			errorMessage = "Email is required."
-			return
-		}
+		let cleanEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
+		let cleanPassword = password.trimmingCharacters(in: .whitespacesAndNewlines)
 
-		guard !password.isEmpty else {
-			errorMessage = "Password is required."
+		guard !cleanEmail.isEmpty, !cleanPassword.isEmpty else {
+			errorMessage = "Please enter email and password."
 			return
 		}
 
@@ -93,13 +71,24 @@ final class AuthViewModel: ObservableObject {
 		defer { isLoading = false }
 
 		do {
-			_ = try await Auth.auth().signIn(withEmail: email, password: password)
+			let result = try await Auth.auth().signIn(withEmail: cleanEmail, password: cleanPassword)
+			currentUserEmail = result.user.email ?? ""
+
+			await createOrUpdateUserDocument(
+				uid: result.user.uid,
+				firstName: nil,
+				lastName: nil,
+				email: result.user.email,
+				fallbackDisplayName: result.user.displayName
+			)
+
 			isAuthenticated = true
 		} catch {
 			errorMessage = error.localizedDescription
 		}
 	}
 
+	// MARK: - Signup
 	func signup(
 		firstName: String,
 		lastName: String,
@@ -110,28 +99,28 @@ final class AuthViewModel: ObservableObject {
 		errorMessage = ""
 		resetMessage = ""
 
-		guard !firstName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-			errorMessage = "First name is required."
+		let cleanFirstName = firstName.trimmingCharacters(in: .whitespacesAndNewlines)
+		let cleanLastName = lastName.trimmingCharacters(in: .whitespacesAndNewlines)
+		let cleanEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
+		let cleanPassword = password.trimmingCharacters(in: .whitespacesAndNewlines)
+		let cleanConfirmPassword = confirmPassword.trimmingCharacters(in: .whitespacesAndNewlines)
+
+		guard !cleanFirstName.isEmpty,
+			  !cleanLastName.isEmpty,
+			  !cleanEmail.isEmpty,
+			  !cleanPassword.isEmpty,
+			  !cleanConfirmPassword.isEmpty else {
+			errorMessage = "Please fill in all fields."
 			return
 		}
 
-		guard !lastName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-			errorMessage = "Last name is required."
-			return
-		}
-
-		guard !email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-			errorMessage = "Email is required."
-			return
-		}
-
-		guard password.count >= 6 else {
-			errorMessage = "Password must be at least 6 characters."
-			return
-		}
-
-		guard password == confirmPassword else {
+		guard cleanPassword == cleanConfirmPassword else {
 			errorMessage = "Passwords do not match."
+			return
+		}
+
+		guard cleanPassword.count >= 6 else {
+			errorMessage = "Password must be at least 6 characters."
 			return
 		}
 
@@ -139,21 +128,38 @@ final class AuthViewModel: ObservableObject {
 		defer { isLoading = false }
 
 		do {
-			let result = try await Auth.auth().createUser(withEmail: email, password: password)
-			let displayName = "\(firstName.trimmingCharacters(in: .whitespacesAndNewlines)) \(lastName.trimmingCharacters(in: .whitespacesAndNewlines))"
-			await createUserDocument(uid: result.user.uid, displayName: displayName, email: email)
+			let result = try await Auth.auth().createUser(withEmail: cleanEmail, password: cleanPassword)
+
+			let fullName = "\(cleanFirstName) \(cleanLastName)".trimmingCharacters(in: .whitespaces)
+
+			let changeRequest = result.user.createProfileChangeRequest()
+			changeRequest.displayName = fullName
+			try await changeRequest.commitChanges()
+
+			await createOrUpdateUserDocument(
+				uid: result.user.uid,
+				firstName: cleanFirstName,
+				lastName: cleanLastName,
+				email: cleanEmail,
+				fallbackDisplayName: fullName
+			)
+
+			currentUserEmail = cleanEmail
 			isAuthenticated = true
 		} catch {
 			errorMessage = error.localizedDescription
 		}
 	}
 
+	// MARK: - Forgot Password
 	func sendReset(email: String) async {
 		errorMessage = ""
 		resetMessage = ""
 
-		guard !email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-			errorMessage = "Email is required."
+		let cleanEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
+
+		guard !cleanEmail.isEmpty else {
+			errorMessage = "Please enter your email."
 			return
 		}
 
@@ -161,20 +167,128 @@ final class AuthViewModel: ObservableObject {
 		defer { isLoading = false }
 
 		do {
-			try await Auth.auth().sendPasswordReset(withEmail: email)
+			try await Auth.auth().sendPasswordReset(withEmail: cleanEmail)
 			resetMessage = "Password reset email sent."
 		} catch {
 			errorMessage = error.localizedDescription
 		}
 	}
 
-	func logout() {
+	// MARK: - Google Sign In
+	func signInWithGoogle() async {
+		errorMessage = ""
+		resetMessage = ""
+
+		guard let clientID = FirebaseApp.app()?.options.clientID else {
+			errorMessage = "Missing Firebase client ID."
+			return
+		}
+
+		guard let rootViewController = UIApplication.shared.topViewController() else {
+			errorMessage = "Could not access screen for Google Sign-In."
+			return
+		}
+
+		isLoading = true
+		defer { isLoading = false }
+
+		do {
+			let config = GIDConfiguration(clientID: clientID)
+			GIDSignIn.sharedInstance.configuration = config
+
+			let result = try await GIDSignIn.sharedInstance.signIn(withPresenting: rootViewController)
+
+			guard let idToken = result.user.idToken?.tokenString else {
+				errorMessage = "Google ID token not found."
+				return
+			}
+
+			let accessToken = result.user.accessToken.tokenString
+			let credential = GoogleAuthProvider.credential(
+				withIDToken: idToken,
+				accessToken: accessToken
+			)
+
+			let authResult = try await Auth.auth().signIn(with: credential)
+			let firebaseUser = authResult.user
+
+			let email = firebaseUser.email ?? result.user.profile?.email
+			let displayName = firebaseUser.displayName ?? result.user.profile?.name
+
+			await createOrUpdateUserDocument(
+				uid: firebaseUser.uid,
+				firstName: nil,
+				lastName: nil,
+				email: email,
+				fallbackDisplayName: displayName
+			)
+
+			currentUserEmail = email ?? ""
+			isAuthenticated = true
+		} catch {
+			errorMessage = error.localizedDescription
+		}
+	}
+
+	// MARK: - Logout
+	func signOut() {
 		errorMessage = ""
 		resetMessage = ""
 
 		do {
 			try Auth.auth().signOut()
+			GIDSignIn.sharedInstance.signOut()
+			currentUserEmail = ""
 			isAuthenticated = false
+		} catch {
+			errorMessage = error.localizedDescription
+		}
+	}
+
+	// MARK: - Firestore
+	private func createOrUpdateUserDocument(
+		uid: String,
+		firstName: String?,
+		lastName: String?,
+		email: String?,
+		fallbackDisplayName: String?
+	) async {
+		let trimmedFirst = firstName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+		let trimmedLast = lastName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+
+		let combinedName = "\(trimmedFirst) \(trimmedLast)".trimmingCharacters(in: .whitespacesAndNewlines)
+
+		let finalDisplayName: String
+		if !combinedName.isEmpty {
+			finalDisplayName = combinedName
+		} else if let fallbackDisplayName, !fallbackDisplayName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+			finalDisplayName = fallbackDisplayName.trimmingCharacters(in: .whitespacesAndNewlines)
+		} else if let email, !email.isEmpty {
+			finalDisplayName = email.components(separatedBy: "@").first ?? "User"
+		} else {
+			finalDisplayName = "User"
+		}
+
+		let userRef = db.collection("users").document(uid)
+
+		do {
+			let snapshot = try await userRef.getDocument()
+
+			if snapshot.exists {
+				try await userRef.setData([
+					"displayName": finalDisplayName,
+					"email": email ?? "",
+					"updatedAt": FieldValue.serverTimestamp()
+				], merge: true)
+			} else {
+				try await userRef.setData([
+					"displayName": finalDisplayName,
+					"email": email ?? "",
+					"isAdmin": false,
+					"createdAt": FieldValue.serverTimestamp(),
+					"updatedAt": FieldValue.serverTimestamp()
+				], merge: true)
+			}
 		} catch {
 			errorMessage = error.localizedDescription
 		}

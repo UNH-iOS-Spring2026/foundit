@@ -4,9 +4,7 @@
 //
 
 import SwiftUI
-import UIKit
 import PhotosUI
-import UniformTypeIdentifiers
 
 private struct PickedPhoto: Transferable {
     let data: Data
@@ -109,35 +107,22 @@ struct ChatDetailView: View {
 
     @ViewBuilder
     private func messageContent(for message: Message) -> some View {
-        if message.type == .photo, let urlString = message.photoUrl {
-            if urlString.hasPrefix("data:image"),
-               let base64Range = urlString.range(of: ";base64,"),
-               let imageData = Data(base64Encoded: String(urlString[base64Range.upperBound...])),
-               let uiImage = UIImage(data: imageData) {
-                // Base64 data URL (stored directly in Firestore)
-                Image(uiImage: uiImage)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(maxWidth: 250, maxHeight: 250)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-            } else if let url = URL(string: urlString) {
-                // Remote URL (e.g. Firebase Storage or any HTTP URL)
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image
-                            .resizable()
-                            .scaledToFit()
-                    case .failure:
-                        Image(systemName: "photo")
-                            .foregroundStyle(.secondary)
-                    default:
-                        ProgressView()
-                    }
+        if message.type == .photo, let urlString = message.photoUrl, let url = URL(string: urlString) {
+            AsyncImage(url: url) { phase in
+                switch phase {
+                case .success(let image):
+                    image
+                        .resizable()
+                        .scaledToFit()
+                case .failure:
+                    Image(systemName: "photo")
+                        .foregroundStyle(.secondary)
+                default:
+                    ProgressView()
                 }
-                .frame(maxWidth: 250, maxHeight: 250)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
             }
+            .frame(maxWidth: 250, maxHeight: 250)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
         } else {
             Text(message.text)
                 .foregroundStyle(.primary)

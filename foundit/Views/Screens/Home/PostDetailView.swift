@@ -13,6 +13,7 @@ struct PostDetailView: View {
     let item: Post
     var chatViewModel: ChatViewModel?
     @StateObject private var viewModel = PostViewModel()
+<<<<<<< HEAD
     @StateObject private var fallbackChatViewModel = ChatViewModel()
     @State private var similarItems: [Post] = []
     @State private var activeChatId: String?
@@ -21,6 +22,12 @@ struct PostDetailView: View {
     private var resolvedChatViewModel: ChatViewModel {
         chatViewModel ?? fallbackChatViewModel
     }
+=======
+    @StateObject private var chatViewModel = ChatViewModel()
+    @State private var similarItems: [Post] = []
+    @State private var navigateToChatId: String?
+    @State private var isCreatingChat = false
+>>>>>>> 78ae7f125702216da2d22ff7cbebb06190f3d28b
     
     var body: some View {
         ScrollView(showsIndicators: false) {
@@ -151,6 +158,7 @@ struct PostDetailView: View {
                 .padding(.top, 20)
                 
                 Button {
+<<<<<<< HEAD
                     guard !isCreatingChat else { return }
                     isCreatingChat = true
                     Task {
@@ -178,10 +186,32 @@ struct PostDetailView: View {
                             }
                         } catch {
                             print("[TakeAction] Error: \(error)")
+=======
+                    Task {
+                        isCreatingChat = true
+                        let now = Timestamp()
+                        let newChat = Chat(
+                            postId: item.id ?? "",
+                            userId: AppConfig.currentUserId,
+                            policeId: "campus-police",
+                            itemTitle: item.title,
+                            itemImageUrl: item.photoUrls.first,
+                            lastMessage: "",
+                            lastMessageAt: now,
+                            createdAt: now,
+                            updatedAt: now
+                        )
+                        do {
+                            let chatId = try await ChatService().createChat(newChat)
+                            navigateToChatId = chatId
+                        } catch {
+                            chatViewModel.errorMessage = error.localizedDescription
+>>>>>>> 78ae7f125702216da2d22ff7cbebb06190f3d28b
                         }
                         isCreatingChat = false
                     }
                 } label: {
+<<<<<<< HEAD
                     Text(isCreatingChat ? "Opening Chat..." : "Take Action")
                            .font(.system(size: 16, weight: .semibold))
                            .foregroundStyle(.white)
@@ -192,6 +222,27 @@ struct PostDetailView: View {
                    }
                    .padding(.horizontal, 16)
                    .padding(.top, 24)
+=======
+                    if isCreatingChat {
+                        ProgressView()
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 16)
+                            .background(Color(red: 0.55, green: 0.60, blue: 0.85))
+                            .clipShape(RoundedRectangle(cornerRadius: 14))
+                    } else {
+                        Text("Take Action")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 16)
+                            .background(Color(red: 0.55, green: 0.60, blue: 0.85))
+                            .clipShape(RoundedRectangle(cornerRadius: 14))
+                    }
+                }
+                .disabled(isCreatingChat)
+                .padding(.horizontal, 16)
+                .padding(.top, 24)
+>>>>>>> 78ae7f125702216da2d22ff7cbebb06190f3d28b
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Similar Items")
                         .font(.system(size: 15, weight: .semibold))
@@ -229,9 +280,15 @@ struct PostDetailView: View {
         .navigationTitle("Report Details")
         .navigationBarTitleDisplayMode(.inline)
         .background(Color(.systemGroupedBackground))
+<<<<<<< HEAD
         .navigationDestination(item: $activeChatId) { chatId in
             ChatDetailView(chatId: chatId, contactName: "Campus Police")
                 .environmentObject(resolvedChatViewModel)
+=======
+        .navigationDestination(item: $navigateToChatId) { chatId in
+            ChatDetailView(chatId: chatId, contactName: "Campus Police")
+                .environmentObject(chatViewModel)
+>>>>>>> 78ae7f125702216da2d22ff7cbebb06190f3d28b
         }
         .task {
             await viewModel.fetchReporterName(userId: item.createdBy)

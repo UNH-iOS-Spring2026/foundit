@@ -15,6 +15,22 @@ struct ItemImageCarouselView: View {
     @State private var currentIndex: Int = 0
 
     var body: some View {
+        if images.isEmpty {
+            ZStack {
+                Color(.systemGray5)
+                Image(systemName: "photo")
+                    .font(.system(size: 40))
+                    .foregroundStyle(Color(.systemGray3))
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 260)
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+        } else {
+            carouselContent
+        }
+    }
+
+    private var carouselContent: some View {
         ZStack(alignment: .bottomTrailing) {
 
             // ── Paging TabView
@@ -64,23 +80,44 @@ struct ItemImageCarouselView: View {
     // MARK: – Single image
     @ViewBuilder
     private func carouselImage(for imageName: String) -> some View {
-        if UIImage(named: imageName) != nil {
+        if let url = URL(string: imageName), url.scheme == "https" || url.scheme == "http" {
+            AsyncImage(url: url) { phase in
+                switch phase {
+                case .success(let image):
+                    image
+                        .resizable()
+                        .scaledToFill()
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 260)
+                        .clipped()
+                case .failure:
+                    imagePlaceholder
+                default:
+                    ProgressView()
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 260)
+                        .background(Color(.systemGray6))
+                }
+            }
+        } else {
             Image(imageName)
                 .resizable()
                 .scaledToFill()
                 .frame(maxWidth: .infinity)
                 .frame(height: 260)
                 .clipped()
-        } else {
-            ZStack {
-                Color(.systemGray5)
-                Image(systemName: "photo")
-                    .font(.system(size: 40))
-                    .foregroundStyle(Color(.systemGray3))
-            }
-            .frame(maxWidth: .infinity)
-            .frame(height: 260)
         }
+    }
+
+    private var imagePlaceholder: some View {
+        ZStack {
+            Color(.systemGray5)
+            Image(systemName: "photo")
+                .font(.system(size: 40))
+                .foregroundStyle(Color(.systemGray3))
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: 260)
     }
 }
 
