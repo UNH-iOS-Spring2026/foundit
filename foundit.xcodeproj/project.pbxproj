@@ -17,12 +17,14 @@
 		1C9353B02F69ED36001FE594 /* FirebaseFirestoreCombine-Community in Frameworks */ = {isa = PBXBuildFile; productRef = 1C9353AF2F69ED36001FE594 /* FirebaseFirestoreCombine-Community */; };
 		1C9353B22F69ED36001FE594 /* FirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = 1C9353B12F69ED36001FE594 /* FirebaseStorage */; };
 		1C9353B42F69ED36001FE594 /* FirebaseStorageCombine-Community in Frameworks */ = {isa = PBXBuildFile; productRef = 1C9353B32F69ED36001FE594 /* FirebaseStorageCombine-Community */; };
+		5A48C8082F85A6630006490D /* NotificationModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A48C8072F85A6630006490D /* NotificationModel.swift */; };
 		87D2B71D2F7DE2C10019D2FB /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = 87D2B71C2F7DE2C10019D2FB /* GoogleSignIn */; };
 		87D2B71F2F7DE2C10019D2FB /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 87D2B71E2F7DE2C10019D2FB /* GoogleSignInSwift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		1C8950382F5F550F00DC2A45 /* foundit.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = foundit.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		5A48C8072F85A6630006490D /* NotificationModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationModel.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -74,6 +76,7 @@
 			children = (
 				1C89503A2F5F550F00DC2A45 /* foundit */,
 				1C8950392F5F550F00DC2A45 /* Products */,
+				5A48C8072F85A6630006490D /* NotificationModel.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -175,6 +178,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				5A48C8082F85A6630006490D /* NotificationModel.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

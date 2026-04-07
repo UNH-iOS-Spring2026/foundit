@@ -15,6 +15,7 @@ struct HomeView: View {
     @EnvironmentObject var authVM: AuthViewModel
     @Binding var searchText: String
     @State private var navigateToReport: Bool = false
+    @State private var showNotifications: Bool = false
     @State private var showFilterSheet: Bool = false
     @State private var selectedFilter: PostType? = nil
     @State private var postToDelete: Post? = nil
@@ -39,7 +40,11 @@ struct HomeView: View {
                 hasNotification: true,
                 onPost: {
                     navigateToReport = true
-                })
+                },
+                onNotificationTap: {
+                    showNotifications = true
+                }
+            )
             // MARK: Search + Filter
             HStack(spacing: 10){
                 HStack {
@@ -151,6 +156,9 @@ struct HomeView: View {
                 shouldRefreshAfterPost = true
             })
                 .environmentObject(postViewModel)
+        }
+        .navigationDestination(isPresented: $showNotifications) {
+            NotificationView()
         }
         .navigationDestination(isPresented: $navigateToEdit) {
             if let post = postToEdit {
