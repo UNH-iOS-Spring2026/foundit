@@ -30,6 +30,23 @@ struct PostDetailView: View {
         return viewModel.reporterName
     }
     
+    // Open location in Apple Maps with directions
+    private func openInMaps() {
+        let coordinate = CLLocationCoordinate2D(
+            latitude: item.coordinate.latitude,
+            longitude: item.coordinate.longitude
+        )
+        
+        let placemark = MKPlacemark(coordinate: coordinate)
+        let mapItem = MKMapItem(placemark: placemark)
+        mapItem.name = item.lastSeenLocationText.isEmpty ? item.title : item.lastSeenLocationText
+        
+        // Open Maps with directions option
+        mapItem.openInMaps(launchOptions: [
+            MKLaunchOptionsDirectionsModeKey: MKLaunchOptionsDirectionsModeWalking
+        ])
+    }
+    
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: 0) {
@@ -143,7 +160,14 @@ struct PostDetailView: View {
                     .frame(maxWidth: .infinity)
                     .frame(height: 220)
                     .clipShape(RoundedRectangle(cornerRadius: 14))
-                    .disabled(true)   // non-interactive, tap to open Maps if needed
+                    .disabled(true)
+                    .onTapGesture {
+                        openInMaps()
+                    }
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14)
+                            .strokeBorder(Color(.systemGray5), lineWidth: 1)
+                    )
                     
                     HStack(spacing: 6) {
                         Image(systemName: "mappin.circle.fill")
@@ -152,6 +176,21 @@ struct PostDetailView: View {
                         Text(item.lastSeenLocationText)
                             .font(.system(size: 14, weight: .medium))
                             .foregroundStyle(.primary)
+                        
+                        Spacer()
+                        
+                        // "Open in Maps" button
+                        Button {
+                            openInMaps()
+                        } label: {
+                            HStack(spacing: 4) {
+                                Text("Get Directions")
+                                    .font(.system(size: 13, weight: .medium))
+                                Image(systemName: "arrow.up.right")
+                                    .font(.system(size: 11, weight: .semibold))
+                            }
+                            .foregroundStyle(Color(red: 0.55, green: 0.60, blue: 0.85))
+                        }
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
