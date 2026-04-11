@@ -134,8 +134,8 @@ struct HomeView: View {
                                         postToEdit = item
                                         navigateToEdit = true
                                     },
-                                    canDelete: item.createdBy == AppConfig.placeholderUserId,
-                                    canEdit: item.createdBy == AppConfig.placeholderUserId
+                                    canDelete: item.createdBy == authVM.currentUser?.uid,
+                                    canEdit: item.createdBy == authVM.currentUser?.uid
                                 )
                             }
                             .buttonStyle(.plain)
