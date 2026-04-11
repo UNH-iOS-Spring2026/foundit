@@ -23,11 +23,6 @@ struct MyPostsView: View {
     @State private var navigateToEdit = false
     @State private var navigateToCreate = false
 
-    private let columns = [
-        GridItem(.flexible(), spacing: 12),
-        GridItem(.flexible(), spacing: 12)
-    ]
-
     private var filteredPosts: [Post] {
         var result = posts
         if let filter = selectedFilter {
@@ -175,12 +170,12 @@ struct MyPostsView: View {
                         .frame(maxWidth: .infinity)
                         .padding(.top, 60)
                     } else {
-                        LazyVGrid(columns: columns, spacing: 12) {
+                        VStack(spacing: 12) {
                             ForEach(filteredPosts) { item in
                                 NavigationLink {
                                     PostDetailView(item: item, chatViewModel: chatViewModel)
                                 } label: {
-                                    ItemCardView(
+                                    MyPostCardView(
                                         item: item,
                                         onDelete: {
                                             postToDelete = item
@@ -189,16 +184,14 @@ struct MyPostsView: View {
                                         onEdit: {
                                             postToEdit = item
                                             navigateToEdit = true
-                                        },
-                                        canDelete: true,
-                                        canEdit: true
+                                        }
                                     )
                                 }
                                 .buttonStyle(.plain)
                             }
                         }
-                        .padding(.horizontal, 16)
-                        .padding(.top, 8)
+                        .padding(.horizontal, 20)
+                        .padding(.top, 12)
                         .padding(.bottom, 24)
                     }
                 }
@@ -287,6 +280,122 @@ private struct MyPostsFilterPill: View {
                 .clipShape(Capsule())
         }
         .buttonStyle(.plain)
+    }
+}
+
+// MARK: - My Post Card View (Full Width)
+
+private struct MyPostCardView: View {
+    let item: Post
+    var onDelete: (() -> Void)? = nil
+    var onEdit: (() -> Void)? = nil
+    
+    var body: some View {
+        HStack(alignment: .top, spacing: 14) {
+            // Thumbnail Image
+            itemImage
+                .frame(width: 110, height: 110)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color.black.opacity(0.1), lineWidth: 0.5)
+                )
+            
+            // Post Content
+            VStack(alignment: .leading, spacing: 7) {
+                // Status Badge
+                HStack {
+                    Text(item.type.label)
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(item.type == .lost ? .pink : .green)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(
+                            (item.type == .lost ? Color.pink : Color.green).opacity(0.12)
+                        )
+                        .clipShape(Capsule())
+                    
+                    Spacer()
+                }
+                
+                Text(item.title)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(2)
+                
+                Text(item.formattedDate)
+                    .font(.system(size: 13))
+                    .foregroundStyle(.secondary)
+                
+                HStack(alignment: .top, spacing: 4) {
+                    Image(systemName: "mappin.circle.fill")
+                        .foregroundStyle(.pink)
+                        .font(.system(size: 12))
+                        .offset(y: 2)
+                    
+                    Text(item.lastSeenLocationText)
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 16)
+        .background(Color(.systemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 2)
+        .contextMenu {
+            Button {
+                onEdit?()
+            } label: {
+                Label("Edit", systemImage: "pencil")
+            }
+            
+            Button(role: .destructive) {
+                onDelete?()
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
+        }
+    }
+    
+    // MARK: – Image resolution
+    @ViewBuilder
+    private var itemImage: some View {
+        if let urlString = item.primaryImageUrl, let url = URL(string: urlString) {
+            AsyncImage(url: url) { phase in
+                switch phase {
+                case .success(let image):
+                    image
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 110, height: 110)
+                        .clipped()
+                case .failure:
+                    placeholderImage
+                default:
+                    ProgressView()
+                        .frame(width: 110, height: 110)
+                        .background(Color(.systemGray6))
+                }
+            }
+        } else {
+            placeholderImage
+        }
+    }
+    
+    private var placeholderImage: some View {
+        ZStack {
+            Color(.systemGray5)
+            Image(systemName: "photo")
+                .font(.system(size: 36))
+                .foregroundStyle(Color(.systemGray2))
+        }
+        .frame(width: 110, height: 110)
     }
 }
 
