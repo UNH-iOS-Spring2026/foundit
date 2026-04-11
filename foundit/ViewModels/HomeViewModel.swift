@@ -36,6 +36,11 @@ final class HomeViewModel: ObservableObject {
             $0.category.localizedCaseInsensitiveContains(searchText)
         }
     }
+    
+    // MARK: Limited items for homepage (max 10)
+    var limitedItems: [Post] {
+        Array(filteredItems.prefix(10))
+    }
  
     // MARK: Init
     init() {

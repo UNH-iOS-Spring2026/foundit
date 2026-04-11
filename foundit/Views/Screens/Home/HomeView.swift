@@ -70,16 +70,25 @@ struct HomeView: View {
                 .padding(.trailing)
             }
             
-            HStack {
-                Spacer()
-                Button("See all") {
-                    showAllItems = true
+            // Only show "See all" button if there are more than 10 items
+            if viewModel.filteredItems.count > 10 {
+                HStack {
+                    Spacer()
+                    Button {
+                        showAllItems = true
+                    } label: {
+                        HStack(spacing: 4) {
+                            Text("See all")
+                            Text("(\(viewModel.filteredItems.count))")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(Color(red: 0.55, green: 0.60, blue: 0.85))
                 }
-                .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(Color(red: 0.55, green: 0.60, blue: 0.85))
+                .padding(.horizontal, 16)
+                .padding(.top, 6)
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 6)
             
             // Grid
             ScrollView {
@@ -106,7 +115,7 @@ struct HomeView: View {
                     }
                     .padding(.top, 60)
                     .padding(.horizontal, 32)
-                } else if viewModel.filteredItems.isEmpty {
+                } else if viewModel.limitedItems.isEmpty {
                     VStack(spacing: 12) {
                         Image(systemName: "magnifyingglass")
                             .font(.system(size: 40))
@@ -120,7 +129,7 @@ struct HomeView: View {
                     .padding(.top, 60)
                 } else {
                     LazyVGrid(columns: columns, spacing: 12) {
-                        ForEach(viewModel.filteredItems) { item in
+                        ForEach(viewModel.limitedItems) { item in
                             NavigationLink {
                                 PostDetailView(item: item, chatViewModel: chatViewModel)
                             } label: {
