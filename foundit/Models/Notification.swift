@@ -1,7 +1,7 @@
 //
-//  NotificationModel.swift
+//  Notification.swift
 //  foundit
-//
+
 
 import Foundation
 

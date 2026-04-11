@@ -367,7 +367,7 @@ private struct MyPostCardView: View {
     @ViewBuilder
     private var itemImage: some View {
         if let urlString = item.primaryImageUrl, let url = URL(string: urlString) {
-            AsyncImage(url: url) { phase in
+            CachedAsyncImage(url: url) { phase in
                 switch phase {
                 case .success(let image):
                     image

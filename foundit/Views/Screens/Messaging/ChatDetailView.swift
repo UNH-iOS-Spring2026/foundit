@@ -108,7 +108,7 @@ struct ChatDetailView: View {
     @ViewBuilder
     private func messageContent(for message: Message) -> some View {
         if message.type == .photo, let urlString = message.photoUrl, let url = URL(string: urlString) {
-            AsyncImage(url: url) { phase in
+            CachedAsyncImage(url: url) { phase in
                 switch phase {
                 case .success(let image):
                     image
