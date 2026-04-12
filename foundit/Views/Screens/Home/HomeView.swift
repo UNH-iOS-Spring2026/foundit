@@ -20,7 +20,6 @@ struct HomeView: View {
     @State private var showDeleteConfirmation = false
     @State private var postToEdit: Post? = nil
     @State private var navigateToEdit: Bool = false
-    @State private var showAllItems: Bool = false
     @State private var shouldRefreshAfterPost: Bool = false
 
     
@@ -59,15 +58,17 @@ struct HomeView: View {
             // MARK: Section Header
             HStack(alignment: .center) {
                 Text("Recent Items")
-                    .font(.system(size: 16, weight: .bold))
+                    .font(.system(size: 20, weight: .bold))
                     .foregroundStyle(.primary)
                 
                 Spacer()
                 
                 if viewModel.filteredItems.count > 10 {
-                    Button {
-                        showAllItems = true
-                    } label: {
+                    NavigationLink(destination: AllItemsView()
+                        .environmentObject(postViewModel)
+                        .environmentObject(chatViewModel)
+                        .environmentObject(authVM)
+                    ) {
                         HStack(spacing: 4) {
                             Text("See all")
                                 .font(.system(size: 15, weight: .medium))
@@ -78,7 +79,7 @@ struct HomeView: View {
                 }
             }
             .padding(.horizontal, 16)
-            .padding(.top, 8)
+            .padding(.top, 16)
             
             // Grid
             ScrollView {
@@ -141,6 +142,7 @@ struct HomeView: View {
                         }
                     }
                     .padding(.horizontal, 12)
+                    .padding(.top, 8)
                     .padding(.bottom, 20)
                 }
             }
@@ -163,11 +165,6 @@ struct HomeView: View {
                 PostItemView(postToEdit: post)
                     .environmentObject(postViewModel)
             }
-        }
-        .fullScreenCover(isPresented: $showAllItems) {
-            AllItemsView()
-                .environmentObject(postViewModel)
-                .environmentObject(chatViewModel)
         }
         .onChange(of: searchText) { _, newValue in
             viewModel.searchText = newValue
