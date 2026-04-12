@@ -172,22 +172,42 @@ struct MyPostsView: View {
                     } else {
                         VStack(spacing: 12) {
                             ForEach(filteredPosts) { item in
-                                NavigationLink {
-                                    PostDetailView(item: item, chatViewModel: chatViewModel)
-                                } label: {
-                                    MyPostCardView(
-                                        item: item,
-                                        onDelete: {
-                                            postToDelete = item
-                                            showDeleteConfirmation = true
-                                        },
-                                        onEdit: {
+                                ZStack(alignment: .topTrailing) {
+                                    // Main card with navigation
+                                    NavigationLink {
+                                        PostDetailView(item: item, chatViewModel: chatViewModel)
+                                    } label: {
+                                        MyPostCardView(item: item)
+                                    }
+                                    .buttonStyle(.plain)
+                                    
+                                    // Overlay menu button (not part of NavigationLink)
+                                    Menu {
+                                        Button {
                                             postToEdit = item
                                             navigateToEdit = true
+                                        } label: {
+                                            Label("Edit", systemImage: "pencil")
                                         }
-                                    )
+                                        
+                                        Button(role: .destructive) {
+                                            postToDelete = item
+                                            showDeleteConfirmation = true
+                                        } label: {
+                                            Label("Delete", systemImage: "trash")
+                                        }
+                                    } label: {
+                                        Image(systemName: "ellipsis")
+                                            .font(.system(size: 16, weight: .semibold))
+                                            .foregroundStyle(.secondary)
+                                            .frame(width: 44, height: 44)
+                                            .contentShape(Rectangle())
+                                            .background(Color(.systemBackground).opacity(0.01)) // Ensures tap works
+                                    }
+                                    .buttonStyle(.plain)
+                                    .offset(x: -8, y: 8) // Position in top-right
+                                    .zIndex(1) // Ensure it's above the NavigationLink
                                 }
-                                .buttonStyle(.plain)
                             }
                         }
                         .padding(.horizontal, 20)
@@ -287,8 +307,6 @@ private struct MyPostsFilterPill: View {
 
 private struct MyPostCardView: View {
     let item: Post
-    var onDelete: (() -> Void)? = nil
-    var onEdit: (() -> Void)? = nil
     
     var body: some View {
         HStack(alignment: .top, spacing: 14) {
@@ -303,8 +321,8 @@ private struct MyPostCardView: View {
             
             // Post Content
             VStack(alignment: .leading, spacing: 7) {
-                // Status Badge
-                HStack {
+                // Status Badge (menu is now external)
+                HStack(alignment: .center) {
                     Text(item.type.label)
                         .font(.system(size: 11, weight: .semibold))
                         .foregroundStyle(item.type == .lost ? .pink : .green)
@@ -348,19 +366,6 @@ private struct MyPostCardView: View {
         .background(Color(.systemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 2)
-        .contextMenu {
-            Button {
-                onEdit?()
-            } label: {
-                Label("Edit", systemImage: "pencil")
-            }
-            
-            Button(role: .destructive) {
-                onDelete?()
-            } label: {
-                Label("Delete", systemImage: "trash")
-            }
-        }
     }
     
     // MARK: – Image resolution
