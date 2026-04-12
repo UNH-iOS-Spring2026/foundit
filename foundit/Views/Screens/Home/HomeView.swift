@@ -16,8 +16,6 @@ struct HomeView: View {
     @Binding var searchText: String
     @State private var navigateToReport: Bool = false
     @State private var showNotifications: Bool = false
-    @State private var showFilterSheet: Bool = false
-    @State private var selectedFilter: PostType? = nil
     @State private var postToDelete: Post? = nil
     @State private var showDeleteConfirmation = false
     @State private var postToEdit: Post? = nil
@@ -45,50 +43,42 @@ struct HomeView: View {
                     showNotifications = true
                 }
             )
-            // MARK: Search + Filter
-            HStack(spacing: 10){
-                HStack {
-                    Image(systemName: "magnifyingglass")
-                        .foregroundStyle(.secondary)
-                    TextField("Search items…", text: $viewModel.searchText)
-                        .autocorrectionDisabled()
-                }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 10)
-                .background(Color(.systemGray6))
-                .clipShape(Capsule())
-                .padding(.horizontal, 12)
-                
-                
-                Button {
-                    showFilterSheet = true
-                } label: {
-                    Image(.filter)
-                        .font(.system(size: 1))
-                        .foregroundStyle(Color(red: 0.55, green: 0.60, blue: 0.85))
-                }
-                .padding(.trailing)
+            // MARK: Search
+            HStack {
+                Image(systemName: "magnifyingglass")
+                    .foregroundStyle(.secondary)
+                TextField("Search items…", text: $viewModel.searchText)
+                    .autocorrectionDisabled()
             }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(Color(.systemGray6))
+            .clipShape(Capsule())
+            .padding(.horizontal, 16)
             
-            // Only show "See all" button if there are more than 10 items
-            if viewModel.filteredItems.count > 10 {
-                HStack {
-                    Spacer()
+            // MARK: Section Header
+            HStack(alignment: .center) {
+                Text("Recent Items")
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundStyle(.primary)
+                
+                Spacer()
+                
+                if viewModel.filteredItems.count > 10 {
                     Button {
                         showAllItems = true
                     } label: {
                         HStack(spacing: 4) {
                             Text("See all")
-                            Text("(\(viewModel.filteredItems.count))")
-                                .foregroundStyle(.secondary)
-                        }
+                                .font(.system(size: 15, weight: .medium))
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 12, weight: .medium))
+                        }.foregroundStyle(Color(red: 0.55, green: 0.60, blue: 0.85))
                     }
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(Color(red: 0.55, green: 0.60, blue: 0.85))
                 }
-                .padding(.horizontal, 16)
-                .padding(.top, 6)
             }
+            .padding(.horizontal, 16)
+            .padding(.top, 8)
             
             // Grid
             ScrollView {
@@ -151,7 +141,6 @@ struct HomeView: View {
                         }
                     }
                     .padding(.horizontal, 12)
-                    .padding(.top, 8)
                     .padding(.bottom, 20)
                 }
             }
@@ -174,18 +163,6 @@ struct HomeView: View {
                 PostItemView(postToEdit: post)
                     .environmentObject(postViewModel)
             }
-        }
-        .sheet(isPresented: $showFilterSheet) {
-            FilterSheetView(selectedFilter: $selectedFilter) {
-                Task {
-                    if let filter = selectedFilter {
-                        await viewModel.loadItems(ofType: filter)
-                    } else {
-                        await viewModel.loadItems()
-                    }
-                }
-            }
-            .presentationDetents([.medium])
         }
         .fullScreenCover(isPresented: $showAllItems) {
             AllItemsView()

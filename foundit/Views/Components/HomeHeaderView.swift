@@ -71,12 +71,11 @@ struct HomeHeaderView: View {
                 Button(action: onPost) {
                     Text("Post")
                         .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(.primary)
-                        .padding(.horizontal, 24)
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 20)
                         .padding(.vertical, 10)
-                        .overlay(
-                            Capsule().stroke(Color(FounditColors.primary), lineWidth: 1.5)
-                        )
+                        .background(Color(FounditColors.primary))
+                        .clipShape(Capsule())
                 }
             }
             .padding(16)
