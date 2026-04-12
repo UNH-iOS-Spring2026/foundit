@@ -19,6 +19,7 @@ class PostViewModel: ObservableObject {
     private let postService = PostService()
     private let storageService = StorageService()
     private let userService = UserService()
+    private let notificationService = NotificationService()
 
     func fetchPosts(type: PostType? = nil) async {
         isLoading = true
@@ -97,6 +98,7 @@ class PostViewModel: ObservableObject {
             }
             
             let post = Post(
+                id: postId,
                 type: type,
                 title: title,
                 description: description,
@@ -112,6 +114,11 @@ class PostViewModel: ObservableObject {
             )
             
             _ = try await postService.createPost(post)
+            
+            // IMPORTANT: Find similar posts and notify users
+            let similarPosts = try await postService.fetchSimilarPosts(to: post, limit: 10)
+            await notificationService.notifyUsersOfSimilarPost(newPost: post, similarPosts: similarPosts)
+            
             await fetchPosts()
             didSucceed = true
         } catch {
