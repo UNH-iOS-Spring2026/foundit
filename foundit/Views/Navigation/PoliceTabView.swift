@@ -12,22 +12,18 @@ struct PoliceTabView: View {
     var body: some View {
         TabView {
             NavigationStack {
-                Text("Police Dashboard")
-                    .font(.title2)
-                    .foregroundStyle(.secondary)
+                PoliceDashboardView()
             }
             .tabItem {
                 Image(systemName: "shield")
                 Text("Dashboard")
             }
 
-            NavigationStack {
-                MessageScreen()
-            }
-            .tabItem {
-                Image(systemName: "message")
-                Text("Inbox")
-            }
+            PoliceInboxView()
+                .tabItem {
+                    Image(systemName: "message")
+                    Text("Inbox")
+                }
 
             NavigationStack {
                 ProfileScreen()

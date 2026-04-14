@@ -6,7 +6,10 @@
 import Foundation
 import FirebaseFirestore
 
-struct Chat: Identifiable, Codable {
+struct Chat: Identifiable, Codable, Hashable {
+    static func == (lhs: Chat, rhs: Chat) -> Bool { lhs.id == rhs.id }
+    func hash(into hasher: inout Hasher) { hasher.combine(id) }
+
     enum Status: String, Codable {
         case active
         case closed

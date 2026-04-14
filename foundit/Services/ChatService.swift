@@ -33,6 +33,14 @@ class ChatService {
         return try snapshot.documents.compactMap { try $0.data(as: Chat.self) }
     }
 
+    /// Fetches all chats for the police shared inbox (all conversations).
+    func fetchAllPoliceChats() async throws -> [Chat] {
+        let snapshot = try await db.collection(collection)
+            .order(by: "lastMessageAt", descending: true)
+            .getDocuments()
+        return try snapshot.documents.compactMap { try $0.data(as: Chat.self) }
+    }
+
     func sendMessage(chatId: String, message: Message) async throws {
         let batch = db.batch()
 

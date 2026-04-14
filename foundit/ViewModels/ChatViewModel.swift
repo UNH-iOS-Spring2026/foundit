@@ -30,6 +30,18 @@ class ChatViewModel: ObservableObject {
         isLoading = false
     }
 
+    /// Fetches all conversations for the police shared inbox.
+    func fetchPoliceConversations() async {
+        isLoading = true
+        errorMessage = nil
+        do {
+            conversations = try await chatService.fetchAllPoliceChats()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+        isLoading = false
+    }
+
     func listenToMessages(chatId: String) {
         stopListening()
         chatService.messagesPublisher(chatId: chatId)
