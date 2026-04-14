@@ -2,6 +2,7 @@
 //  SignupView.swift
 //  foundit
 //
+//	Source of inspiration for UI: ChatGPT (OpenAI)
 
 import SwiftUI
 

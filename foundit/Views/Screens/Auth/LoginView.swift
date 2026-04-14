@@ -2,6 +2,7 @@
 //  LoginView.swift
 //  foundit
 //
+//  Source of inspiration for UI: ChatGPT (OpenAI)
 
 import SwiftUI
 
@@ -58,7 +59,6 @@ struct LoginView: View {
 						.padding(.horizontal, 28)
 						.padding(.top, 10)
 				}
-
 				Spacer().frame(height: 16)
 
 				Button {
