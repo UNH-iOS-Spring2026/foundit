@@ -11,8 +11,13 @@ struct RootView: View {
 	var body: some View {
 		Group {
 			if authVM.isAuthenticated {
-				MainTabView()
-					.environmentObject(authVM)
+				if authVM.isAdmin {
+					PoliceTabView()
+						.environmentObject(authVM)
+				} else {
+					MainTabView()
+						.environmentObject(authVM)
+				}
 			} else {
 				NavigationStack {
 					SplashView()
