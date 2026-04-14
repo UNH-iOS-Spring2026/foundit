@@ -18,6 +18,7 @@ private struct PickedPhoto: Transferable {
 struct ChatDetailView: View {
     let chatId: String
     let contactName: String
+    var isAdmin: Bool = false
     @EnvironmentObject var chatViewModel: ChatViewModel
     @State private var draftText: String = ""
     @State private var selectedPhoto: PhotosPickerItem?
@@ -28,9 +29,11 @@ struct ChatDetailView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 12) {
                         ForEach(chatViewModel.messages) { message in
-                            let isFromUser = message.senderId == AppConfig.placeholderUserId
+                            let isOwnMessage = isAdmin
+                                ? message.senderRole == .police
+                                : message.senderId == AppConfig.currentUserId
                             HStack(alignment: .bottom) {
-                                if isFromUser {
+                                if isOwnMessage {
                                     Spacer(minLength: 40)
                                     bubble(content: AnyView(messageContent(for: message)), isFromUser: true)
                                 } else {
@@ -89,7 +92,7 @@ struct ChatDetailView: View {
                 guard let item = selectedPhoto else { return }
                 Task {
                     if let photo = try? await item.loadTransferable(type: PickedPhoto.self) {
-                        await chatViewModel.sendPhoto(chatId: chatId, imageData: photo.data)
+                        await chatViewModel.sendPhoto(chatId: chatId, imageData: photo.data, isAdmin: isAdmin)
                     }
                     selectedPhoto = nil
                 }
@@ -141,7 +144,7 @@ struct ChatDetailView: View {
         let trimmed = draftText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
         Task {
-            await chatViewModel.sendMessage(chatId: chatId, text: trimmed)
+            await chatViewModel.sendMessage(chatId: chatId, text: trimmed, isAdmin: isAdmin)
         }
         draftText = ""
     }

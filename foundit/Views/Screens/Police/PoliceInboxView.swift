@@ -96,7 +96,8 @@ struct PoliceInboxView: View {
             .navigationDestination(for: Chat.self) { chat in
                 ChatDetailView(
                     chatId: chat.id ?? "",
-                    contactName: studentNames[chat.userId] ?? "Student"
+                    contactName: studentNames[chat.userId] ?? "Student",
+                    isAdmin: true
                 )
                 .environmentObject(chatViewModel)
             }
