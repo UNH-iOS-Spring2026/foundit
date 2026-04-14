@@ -15,4 +15,7 @@ struct AppConfig {
     static var placeholderUserId: String {
         currentUserId
     }
+
+    /// The fixed sender ID used for all police messages in Firestore.
+    static let policeSenderId = "university_police"
 }

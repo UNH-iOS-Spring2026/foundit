@@ -30,6 +30,18 @@ class ChatViewModel: ObservableObject {
         isLoading = false
     }
 
+    /// Fetches all conversations for the police shared inbox.
+    func fetchPoliceConversations() async {
+        isLoading = true
+        errorMessage = nil
+        do {
+            conversations = try await chatService.fetchAllPoliceChats()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+        isLoading = false
+    }
+
     func listenToMessages(chatId: String) {
         stopListening()
         chatService.messagesPublisher(chatId: chatId)
@@ -47,10 +59,12 @@ class ChatViewModel: ObservableObject {
             .store(in: &cancellables)
     }
 
-    func sendMessage(chatId: String, text: String, senderId: String = AppConfig.placeholderUserId) async {
+    func sendMessage(chatId: String, text: String, isAdmin: Bool = false) async {
+        let senderId = isAdmin ? AppConfig.policeSenderId : AppConfig.currentUserId
+        let senderRole: Message.SenderRole = isAdmin ? .police : .student
         let message = Message(
             senderId: senderId,
-            senderRole: .student,
+            senderRole: senderRole,
             type: .text,
             text: text,
             photoUrl: nil,
@@ -63,7 +77,7 @@ class ChatViewModel: ObservableObject {
         }
     }
 
-    func sendPhoto(chatId: String, imageData: Data, senderId: String = AppConfig.placeholderUserId) async {
+    func sendPhoto(chatId: String, imageData: Data, isAdmin: Bool = false) async {
         isSendingPhoto = true
         do {
             guard let uiImage = UIImage(data: imageData),
@@ -76,9 +90,11 @@ class ChatViewModel: ObservableObject {
             let path = "chats/\(chatId)/\(UUID().uuidString).jpg"
             let downloadUrl = try await StorageService().uploadImage(data: jpegData, path: path)
 
+            let senderId = isAdmin ? AppConfig.policeSenderId : AppConfig.currentUserId
+            let senderRole: Message.SenderRole = isAdmin ? .police : .student
             let message = Message(
                 senderId: senderId,
-                senderRole: .student,
+                senderRole: senderRole,
                 type: .photo,
                 text: "",
                 photoUrl: downloadUrl,
