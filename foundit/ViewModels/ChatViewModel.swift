@@ -12,6 +12,7 @@ import Combine
 class ChatViewModel: ObservableObject {
     @Published var conversations: [Chat] = []
     @Published var messages: [Message] = []
+    @Published var chatStatus: Chat.Status?
     @Published var isLoading = false
     @Published var isSendingPhoto = false
     @Published var errorMessage: String?
@@ -44,6 +45,17 @@ class ChatViewModel: ObservableObject {
 
     func listenToMessages(chatId: String) {
         stopListening()
+
+        chatService.chatPublisher(chatId: chatId)
+            .receive(on: DispatchQueue.main)
+            .sink(
+                receiveCompletion: { _ in },
+                receiveValue: { [weak self] chat in
+                    self?.chatStatus = chat?.status
+                }
+            )
+            .store(in: &cancellables)
+
         chatService.messagesPublisher(chatId: chatId)
             .receive(on: DispatchQueue.main)
             .sink(
@@ -131,6 +143,14 @@ class ChatViewModel: ObservableObject {
         } catch {
             errorMessage = error.localizedDescription
             return nil
+        }
+    }
+
+    func markReadyForPickup(chatId: String, postId: String) async {
+        do {
+            try await chatService.markReadyForPickup(chatId: chatId, postId: postId)
+        } catch {
+            errorMessage = error.localizedDescription
         }
     }
 

@@ -61,6 +61,63 @@ class ChatService {
         try await batch.commit()
     }
 
+    /// Mark a chat as waiting for pickup, update the linked item, and post a system message.
+    func markReadyForPickup(chatId: String, postId: String) async throws {
+        let batch = db.batch()
+        let now = Timestamp()
+
+        // Update chat status
+        let chatRef = db.collection(collection).document(chatId)
+        batch.updateData([
+            "status": Chat.Status.waitingForPickup.rawValue,
+            "lastMessage": "This item has been marked as ready for pickup at the police station.",
+            "lastMessageAt": now,
+            "updatedAt": now
+        ], forDocument: chatRef)
+
+        // Update item status if one exists
+        let itemSnapshot = try await db.collection("items")
+            .whereField("sourcePostId", isEqualTo: postId)
+            .limit(to: 1)
+            .getDocuments()
+        if let itemDoc = itemSnapshot.documents.first {
+            batch.updateData([
+                "status": ItemStatus.waitingForPickup.rawValue
+            ], forDocument: itemDoc.reference)
+        }
+
+        // Post system message
+        let msgRef = db.collection(collection)
+            .document(chatId)
+            .collection("messages")
+            .document()
+        let systemMessage = Message(
+            senderId: "system",
+            senderRole: .system,
+            type: .system,
+            text: "This item has been marked as ready for pickup at the police station.",
+            photoUrl: nil,
+            sentAt: now
+        )
+        try batch.setData(from: systemMessage, forDocument: msgRef)
+
+        try await batch.commit()
+    }
+
+    func chatPublisher(chatId: String) -> AnyPublisher<Chat?, Error> {
+        let subject = PassthroughSubject<Chat?, Error>()
+        db.collection(collection).document(chatId)
+            .addSnapshotListener { snapshot, error in
+                if let error = error {
+                    subject.send(completion: .failure(error))
+                } else if let snapshot = snapshot {
+                    let chat = try? snapshot.data(as: Chat.self)
+                    subject.send(chat)
+                }
+            }
+        return subject.eraseToAnyPublisher()
+    }
+
     func messagesPublisher(chatId: String) -> AnyPublisher<[Message], Error> {
         let query = db.collection(collection)
             .document(chatId)

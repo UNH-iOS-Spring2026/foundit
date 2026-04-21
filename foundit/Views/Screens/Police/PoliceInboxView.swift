@@ -62,15 +62,15 @@ struct PoliceInboxView: View {
                                             .font(.headline)
                                             .lineLimit(1)
 
-                                        Text(chat.status == .closed ? "Closed" : "Active")
+                                        Text(statusLabel(for: chat.status))
                                             .font(.caption2.weight(.semibold))
                                             .padding(.horizontal, 6)
                                             .padding(.vertical, 2)
                                             .background(
                                                 Capsule()
-                                                    .fill(chat.status == .closed ? Color.red.opacity(0.15) : Color.green.opacity(0.15))
+                                                    .fill(statusColor(for: chat.status).opacity(0.15))
                                             )
-                                            .foregroundStyle(chat.status == .closed ? .red : .green)
+                                            .foregroundStyle(statusColor(for: chat.status))
                                     }
 
                                     Text(studentNames[chat.userId] ?? "Student")
@@ -97,6 +97,7 @@ struct PoliceInboxView: View {
                 ChatDetailView(
                     chatId: chat.id ?? "",
                     contactName: studentNames[chat.userId] ?? "Student",
+                    postId: chat.postId,
                     isAdmin: true
                 )
                 .environmentObject(chatViewModel)
@@ -107,6 +108,22 @@ struct PoliceInboxView: View {
                     await loadStudentNames()
                 }
             }
+        }
+    }
+
+    private func statusLabel(for status: Chat.Status) -> String {
+        switch status {
+        case .active: return "Active"
+        case .waitingForPickup: return "Pickup"
+        case .closed: return "Closed"
+        }
+    }
+
+    private func statusColor(for status: Chat.Status) -> Color {
+        switch status {
+        case .active: return .green
+        case .waitingForPickup: return .orange
+        case .closed: return .red
         }
     }
 

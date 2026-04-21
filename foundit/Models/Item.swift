@@ -8,6 +8,7 @@ import FirebaseFirestore
 
 enum ItemStatus: String, Codable {
     case withAdmin = "with_admin"
+    case waitingForPickup = "waiting_for_pickup"
     case returned
 }
 
