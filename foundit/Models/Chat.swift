@@ -12,6 +12,7 @@ struct Chat: Identifiable, Codable, Hashable {
 
     enum Status: String, Codable {
         case active
+        case waitingForPickup
         case closed
     }
 
@@ -38,11 +39,13 @@ struct Message: Identifiable, Codable {
     enum MessageType: String, Codable {
         case text
         case photo
+        case system
     }
 
     enum SenderRole: String, Codable {
         case student
         case police
+        case system
     }
 
     @DocumentID var id: String?
