@@ -239,7 +239,7 @@ struct PostDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .background(Color(.systemGroupedBackground))
         .navigationDestination(item: $activeChatId) { chatId in
-            ChatDetailView(chatId: chatId, contactName: "Campus Police")
+            ChatDetailView(chatId: chatId, contactName: "Campus Police", postId: item.id ?? "")
                 .environmentObject(resolvedChatViewModel)
         }
         .task {

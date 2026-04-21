@@ -18,7 +18,7 @@ struct MessageScreen: View {
                         .foregroundStyle(.secondary)
                 } else {
                     List(chatViewModel.conversations) { chat in
-                        NavigationLink(value: chat.id ?? "") {
+                        NavigationLink(value: chat) {
                             HStack(spacing: 12) {
                                 // Thumbnail
                                 if let urlString = chat.itemImageUrl, let url = URL(string: urlString) {
@@ -61,15 +61,15 @@ struct MessageScreen: View {
                                             .lineLimit(1)
 
                                         // Status badge
-                                        Text(chat.status == .closed ? "Closed" : "Active")
+                                        Text(statusLabel(for: chat.status))
                                             .font(.caption2.weight(.semibold))
                                             .padding(.horizontal, 6)
                                             .padding(.vertical, 2)
                                             .background(
                                                 Capsule()
-                                                    .fill(chat.status == .closed ? Color.red.opacity(0.15) : Color.green.opacity(0.15))
+                                                    .fill(statusColor(for: chat.status).opacity(0.15))
                                             )
-                                            .foregroundStyle(chat.status == .closed ? .red : .green)
+                                            .foregroundStyle(statusColor(for: chat.status))
                                     }
 
                                     Text(chat.lastMessage)
@@ -85,14 +85,31 @@ struct MessageScreen: View {
                 }
             }
             .navigationTitle("Inbox")
-            .navigationDestination(for: String.self) { chatId in
-                ChatDetailView(chatId: chatId, contactName: "Campus Police").environmentObject(chatViewModel)
+            .navigationDestination(for: Chat.self) { chat in
+                ChatDetailView(chatId: chat.id ?? "", contactName: "Campus Police", postId: chat.postId)
+                    .environmentObject(chatViewModel)
             }
             .onAppear {
                 Task {
                     await chatViewModel.fetchConversations()
                 }
             }
+        }
+    }
+
+    private func statusLabel(for status: Chat.Status) -> String {
+        switch status {
+        case .active: return "Active"
+        case .waitingForPickup: return "Pickup"
+        case .closed: return "Closed"
+        }
+    }
+
+    private func statusColor(for status: Chat.Status) -> Color {
+        switch status {
+        case .active: return .green
+        case .waitingForPickup: return .orange
+        case .closed: return .red
         }
     }
 }
