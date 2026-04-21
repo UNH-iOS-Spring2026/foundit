@@ -53,6 +53,10 @@ class PostViewModel: ObservableObject {
             return []
         }
     }
+    
+    func fetchPostById(id: String) async throws -> Post? {
+        return try await postService.fetchPostById(id: id)
+    }
 
     func createPost(
         title: String,
@@ -97,7 +101,7 @@ class PostViewModel: ObservableObject {
                 }
             }
             
-            let post = Post(
+            var post = Post(
                 id: postId,
                 type: type,
                 title: title,
@@ -113,7 +117,11 @@ class PostViewModel: ObservableObject {
                 updatedAt: now
             )
             
-            _ = try await postService.createPost(post)
+            // Create the post and get the actual Firebase document ID
+            let firebaseDocumentId = try await postService.createPost(post)
+            
+            // Update the post object with the actual Firebase ID
+            post.id = firebaseDocumentId
             
             // IMPORTANT: Find similar posts and notify users
             let similarPosts = try await postService.fetchSimilarPosts(to: post, limit: 10)

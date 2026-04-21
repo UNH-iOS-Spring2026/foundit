@@ -8,6 +8,10 @@ import SwiftUI
 struct NotificationView: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var viewModel = NotificationViewModel()
+    @StateObject private var postViewModel = PostViewModel()
+    @State private var selectedPost: Post? = nil
+    @State private var showingErrorAlert = false
+    @State private var errorAlertMessage = ""
     
     var body: some View {
         NavigationStack {
@@ -21,7 +25,7 @@ struct NotificationView: View {
                 }
             }
             .navigationTitle("Notifications")
-            .navigationBarTitleDisplayMode(.large)
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     if !viewModel.notifications.isEmpty {
@@ -40,6 +44,14 @@ struct NotificationView: View {
                         }
                     }
                 }
+            }
+            .navigationDestination(item: $selectedPost) { post in
+                PostDetailView(item: post)
+            }
+            .alert("Post Not Available", isPresented: $showingErrorAlert) {
+                Button("OK", role: .cancel) { }
+            } message: {
+                Text(errorAlertMessage)
             }
             .task {
                 await viewModel.fetchNotifications()
@@ -71,6 +83,10 @@ struct NotificationView: View {
                                 onTap: {
                                     Task {
                                         await viewModel.markAsRead(notification)
+                                        // Navigate to the related post if available
+                                        if let postId = notification.relatedPostId {
+                                            await fetchAndNavigateToPost(postId: postId)
+                                        }
                                     }
                                 },
                                 onDelete: {
@@ -108,6 +124,21 @@ struct NotificationView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(.top, 100)
+    }
+    
+    // MARK: - Helper Functions
+    private func fetchAndNavigateToPost(postId: String) async {
+        do {
+            if let post = try await postViewModel.fetchPostById(id: postId) {
+                selectedPost = post
+            } else {
+                errorAlertMessage = "This post is no longer available. It may have been deleted or removed."
+                showingErrorAlert = true
+            }
+        } catch {
+            errorAlertMessage = "Unable to load this post. Please try again later."
+            showingErrorAlert = true
+        }
     }
 }
 
@@ -175,7 +206,7 @@ struct NotificationRowView: View {
                     Text(notification.message)
                         .font(.system(size: 14))
                         .foregroundStyle(.secondary)
-                        .lineLimit(3)
+                        .fixedSize(horizontal: false, vertical: true)
                         .multilineTextAlignment(.leading)
                     
                     Text(notification.timeAgo)

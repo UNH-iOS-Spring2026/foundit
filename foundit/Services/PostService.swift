@@ -50,6 +50,21 @@ class PostService {
         
         return posts
     }
+    
+    func fetchPostById(id: String) async throws -> Post? {
+        let document = try await db.collection(collection).document(id).getDocument()
+        
+        guard document.exists else {
+            return nil
+        }
+        
+        var post = try document.data(as: Post.self)
+        // Ensure the ID is set
+        if post.id == nil || post.id?.isEmpty == true {
+            post.id = document.documentID
+        }
+        return post
+    }
 
     func fetchPostsByUser(userId: String) async throws -> [Post] {
         // Fetch posts by user (don't order in query to avoid needing composite index)
