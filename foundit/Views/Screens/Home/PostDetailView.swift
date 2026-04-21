@@ -8,6 +8,7 @@
 import SwiftUI
 import MapKit
 import FirebaseFirestore
+import FirebaseAuth
 
 struct PostDetailView: View {
     let item: Post
@@ -20,6 +21,14 @@ struct PostDetailView: View {
     
     private var resolvedChatViewModel: ChatViewModel {
         chatViewModel ?? fallbackChatViewModel
+    }
+    
+    // Check if current user is the post creator
+    private var isOwnPost: Bool {
+        guard let currentUserId = Auth.auth().currentUser?.uid else {
+            return false
+        }
+        return item.createdBy == currentUserId
     }
     
     // Get reporter name from reporterInfo if available, otherwise use fetched name
@@ -197,57 +206,60 @@ struct PostDetailView: View {
                 .padding(.horizontal, 16)
                 .padding(.top, 20)
                 
-                Button {
-                    guard !isCreatingChat else { return }
-                    isCreatingChat = true
-                    Task {
-                        let chatService = ChatService()
-                        let userId = AppConfig.placeholderUserId
-                        do {
-                            if let existing = try await chatService.fetchChat(forPostId: item.id ?? "", userId: userId) {
-                                activeChatId = existing.id
-                            } else {
-                                let now = Timestamp()
-                                let chat = Chat(
-                                    postId: item.id ?? "",
-                                    userId: userId,
-                                    policeId: "campus-police-001",
-                                    itemTitle: item.title,
-                                    itemImageUrl: item.primaryImageUrl,
-                                    lastMessage: "",
-                                    lastMessageAt: now,
-                                    status: .active,
-                                    createdAt: now,
-                                    updatedAt: now
-                                )
-                                let chatId = try await chatService.createChat(chat)
-                                activeChatId = chatId
+                // Only show "Take Action" button if this is NOT the current user's post
+                if !isOwnPost {
+                    Button {
+                        guard !isCreatingChat else { return }
+                        isCreatingChat = true
+                        Task {
+                            let chatService = ChatService()
+                            let userId = AppConfig.placeholderUserId
+                            do {
+                                if let existing = try await chatService.fetchChat(forPostId: item.id ?? "", userId: userId) {
+                                    activeChatId = existing.id
+                                } else {
+                                    let now = Timestamp()
+                                    let chat = Chat(
+                                        postId: item.id ?? "",
+                                        userId: userId,
+                                        policeId: "campus-police-001",
+                                        itemTitle: item.title,
+                                        itemImageUrl: item.primaryImageUrl,
+                                        lastMessage: "",
+                                        lastMessageAt: now,
+                                        status: .active,
+                                        createdAt: now,
+                                        updatedAt: now
+                                    )
+                                    let chatId = try await chatService.createChat(chat)
+                                    activeChatId = chatId
+                                }
+                            } catch {
+                                print("[TakeAction] Error: \(error)")
                             }
-                        } catch {
-                            print("[TakeAction] Error: \(error)")
+                            isCreatingChat = false
                         }
-                        isCreatingChat = false
+                    } label: {
+                        if isCreatingChat {
+                            ProgressView()
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 16)
+                                .background(Color(red: 0.55, green: 0.60, blue: 0.85))
+                                .clipShape(RoundedRectangle(cornerRadius: 14))
+                        } else {
+                            Text("Take Action")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundStyle(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 16)
+                                .background(Color(red: 0.55, green: 0.60, blue: 0.85))
+                                .clipShape(RoundedRectangle(cornerRadius: 14))
+                        }
                     }
-                } label: {
-                    if isCreatingChat {
-                        ProgressView()
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 16)
-                            .background(Color(red: 0.55, green: 0.60, blue: 0.85))
-                            .clipShape(RoundedRectangle(cornerRadius: 14))
-                    } else {
-                        Text("Take Action")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 16)
-                            .background(Color(red: 0.55, green: 0.60, blue: 0.85))
-                            .clipShape(RoundedRectangle(cornerRadius: 14))
-                    }
+                    .disabled(isCreatingChat)
+                    .padding(.horizontal, 16)
+                    .padding(.top, 24)
                 }
-                .disabled(isCreatingChat)
-                .padding(.horizontal, 16)
-                .padding(.top, 24)
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Similar Items")
                         .font(.system(size: 15, weight: .semibold))

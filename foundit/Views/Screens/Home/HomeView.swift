@@ -63,19 +63,17 @@ struct HomeView: View {
                 
                 Spacer()
                 
-                if viewModel.filteredItems.count > 10 {
-                    NavigationLink(destination: AllItemsView()
-                        .environmentObject(postViewModel)
-                        .environmentObject(chatViewModel)
-                        .environmentObject(authVM)
-                    ) {
-                        HStack(spacing: 4) {
-                            Text("See all")
-                                .font(.system(size: 15, weight: .medium))
-                            Image(systemName: "chevron.right")
-                                .font(.system(size: 12, weight: .medium))
-                        }.foregroundStyle(Color(red: 0.55, green: 0.60, blue: 0.85))
-                    }
+                NavigationLink(destination: AllItemsView()
+                    .environmentObject(postViewModel)
+                    .environmentObject(chatViewModel)
+                    .environmentObject(authVM)
+                ) {
+                    HStack(spacing: 4) {
+                        Text("See all")
+                            .font(.system(size: 15, weight: .medium))
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 12, weight: .medium))
+                    }.foregroundStyle(Color(red: 0.55, green: 0.60, blue: 0.85))
                 }
             }
             .padding(.horizontal, 16)
