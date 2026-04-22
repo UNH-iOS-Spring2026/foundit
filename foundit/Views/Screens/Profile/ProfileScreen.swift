@@ -15,11 +15,11 @@ struct ProfileScreen: View {
 	@State private var showLogoutAlert = false
 
 	private var userName: String {
-		authVM.currentUser?.displayName ?? "User"
+		authVM.currentDisplayName.isEmpty ? "User" : authVM.currentDisplayName
 	}
 
 	private var userEmail: String {
-		Auth.auth().currentUser?.email ?? "No email available"
+		authVM.currentUserEmail.isEmpty ? "No email available" : authVM.currentUserEmail
 	}
 
 	var body: some View {
@@ -44,31 +44,42 @@ struct ProfileScreen: View {
 				Divider()
 
 				VStack(spacing: 0) {
-					ProfileMenuItem(icon: "globe", title: "My post")
-					ProfileMenuItem(icon: "square.and.pencil", title: "Edit Profile")
-					ProfileMenuItem(icon: "lock", title: "Change Password")
+					ProfileMenuItem(icon: "globe", title: "My post") { MyPostsView() }
+					ProfileMenuItem(icon: "square.and.pencil", title: "Edit Profile") {
+						EditProfileView()
+					}
+					if !authVM.isGoogleUser {
+						ProfileMenuItem(icon: "lock", title: "Change Password") {
+							ChangePasswordView()
+						}
+					}
 
 					HStack {
 						Image(systemName: "bell")
 							.frame(width: 24)
 							.foregroundColor(.primary)
+
 						Text("Push Notifications")
 							.font(.body)
+
 						Spacer()
+
 						Toggle("", isOn: $pushNotificationsEnabled)
 							.labelsHidden()
 					}
 					.padding(.horizontal)
 					.padding(.vertical, 14)
 
-					Button(action: {
+					Button {
 						showLogoutAlert = true
-					}) {
+					} label: {
 						HStack {
 							Image(systemName: "rectangle.portrait.and.arrow.right")
 								.frame(width: 24)
+
 							Text("Logout")
 								.font(.body)
+
 							Spacer()
 						}
 						.foregroundColor(.primary)
@@ -82,10 +93,10 @@ struct ProfileScreen: View {
 			.navigationTitle("Profile")
 			.navigationBarTitleDisplayMode(.inline)
 			.alert("Logout", isPresented: $showLogoutAlert) {
-				Button("Cancel", role: .cancel) {}
+				Button("Cancel", role: .cancel) { }
 
 				Button("Logout", role: .destructive) {
-					authVM.logout()
+					authVM.signOut()
 				}
 			} message: {
 				Text("Are you sure you want to log out?")
@@ -94,20 +105,24 @@ struct ProfileScreen: View {
 	}
 }
 
-struct ProfileMenuItem: View {
+struct ProfileMenuItem<Destination: View>: View {
 	let icon: String
 	let title: String
+	@ViewBuilder let destination: () -> Destination
 
 	var body: some View {
-		NavigationLink(destination: EmptyView()) {
+		NavigationLink(destination: destination()) {
 			HStack {
 				Image(systemName: icon)
 					.frame(width: 24)
 					.foregroundColor(.primary)
+
 				Text(title)
 					.font(.body)
 					.foregroundColor(.primary)
+
 				Spacer()
+
 				Image(systemName: "chevron.right")
 					.font(.caption)
 					.foregroundColor(.secondary)
@@ -121,6 +136,6 @@ struct ProfileMenuItem: View {
 #Preview {
 	NavigationStack {
 		ProfileScreen()
+			.environmentObject(AuthViewModel())
 	}
-	.environmentObject(AuthViewModel())
 }

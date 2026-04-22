@@ -8,15 +8,187 @@
 import SwiftUI
 import MapKit
 import FirebaseFirestore
+import FirebaseAuth
 
 struct PostDetailView: View {
     let item: Post
-
+    var chatViewModel: ChatViewModel?
+    @EnvironmentObject var authVM: AuthViewModel
     @StateObject private var viewModel = PostViewModel()
-    @StateObject private var chatViewModel = ChatViewModel()
+    @StateObject private var fallbackChatViewModel = ChatViewModel()
     @State private var similarItems: [Post] = []
-    @State private var navigateToChatId: String?
+    @State private var activeChatId: String?
     @State private var isCreatingChat = false
+    // --- QR claim flow state ---
+    @State private var showQRSheet = false               // controls the QR drawer presentation
+    @State private var qrPayload: QRClaimPayload?        // current payload for the displayed QR
+    @State private var isGeneratingQR = false            // spinner state while provisioning + writing token
+    @State private var qrErrorMessage: String?           // inline error under the button
+    @State private var showScanner = false               // controls the full-screen scanner cover
+    @State private var claimListener: ListenerRegistration? // Firestore listener on the token doc
+    
+    private var resolvedChatViewModel: ChatViewModel {
+        chatViewModel ?? fallbackChatViewModel
+    }
+    
+    // Check if current user is the post creator
+    private var isOwnPost: Bool {
+        guard let currentUserId = Auth.auth().currentUser?.uid else {
+            return false
+        }
+        return item.createdBy == currentUserId
+    }
+    
+    // Get reporter name from reporterInfo if available, otherwise use fetched name
+    private var reporterName: String {
+        if let reporterInfo = item.reporterInfo {
+            return reporterInfo.name
+        }
+        return viewModel.reporterName
+    }
+    
+    /// Police-side entry point. Runs when the officer taps "Show QR Code":
+    ///   1. Look up — or provision — the `items` doc for this post so the
+    ///      claim token has a concrete itemId to reference.
+    ///   2. Build a fresh QR payload (unique nonce + 5-minute expiry).
+    ///   3. Write the token doc to Firestore so the scanner can verify it later.
+    ///   4. Open the drawer and start listening for the student's scan.
+    private func generateClaimQR() {
+        guard !isGeneratingQR else { return }
+        let postId = item.id ?? ""
+        guard !postId.isEmpty else {
+            qrErrorMessage = "Missing post id — cannot generate code."
+            return
+        }
+        isGeneratingQR = true
+        qrErrorMessage = nil
+        Task {
+            do {
+                let itemService = ItemService()
+                let tokenService = ClaimTokenService()
+                let existing = try await itemService.fetchItemsByPost(postId: postId).first
+                let itemId: String
+                if let existingId = existing?.id {
+                    itemId = existingId
+                } else {
+                    // No item record yet — could happen if the officer generates a
+                    // QR before any "Ready for Pickup" step. Create one on the fly.
+                    let fresh = Item(
+                        sourcePostId: postId,
+                        status: .waitingForPickup,
+                        qrCodeValue: UUID().uuidString,
+                        receivedAt: Timestamp(),
+                        returnedAt: nil,
+                        foundBy: item.createdBy,
+                        collectedBy: AppConfig.currentUserId
+                    )
+                    itemId = try await itemService.createItem(fresh)
+                }
+
+                // Fresh payload + backing Firestore doc so the scanner can verify later.
+                let payload = QRClaimPayload.generate(for: postId)
+                try await tokenService.createToken(
+                    postId: postId,
+                    itemId: itemId,
+                    nonce: payload.nonce,
+                    expiresAt: payload.expiresAt,
+                    createdByPoliceId: AppConfig.currentUserId
+                )
+
+                qrPayload = payload
+                showQRSheet = true
+                startClaimListener(nonce: payload.nonce)
+            } catch {
+                qrErrorMessage = "Couldn't generate QR: \(error.localizedDescription)"
+            }
+            isGeneratingQR = false
+        }
+    }
+
+    /// Attaches a Firestore snapshot listener to the issued claim token.
+    /// When the student redeems it, `consumedByUserId` becomes non-nil and
+    /// the listener fires — we tear it down, dismiss the drawer, and
+    /// navigate the officer into the matching chat thread.
+    private func startClaimListener(nonce: String) {
+        claimListener?.remove()
+        let service = ClaimTokenService()
+        claimListener = service.observeConsumption(nonce: nonce) { consumedByUserId in
+            claimListener?.remove()
+            claimListener = nil
+            showQRSheet = false
+            Task {
+                if let chat = try? await ChatService().fetchChat(
+                    forPostId: item.id ?? "",
+                    userId: consumedByUserId
+                ) {
+                    activeChatId = chat.id
+                }
+            }
+        }
+    }
+
+    /// Detach the listener on drawer dismiss or when the view goes away,
+    /// so we don't leak a Firestore observer.
+    private func stopClaimListener() {
+        claimListener?.remove()
+        claimListener = nil
+    }
+
+    /// Demo-only shortcut. Simulates the student scan path from the police
+    /// phone — useful for recording demos without a second device. Redeems
+    /// the current token as if a student had scanned it, then the existing
+    /// `observeConsumption` listener handles drawer dismiss + navigation.
+    /// Currently hidden (no callback wired in the drawer).
+    private func simulateStudentScan() {
+        guard let payload = qrPayload else {
+            qrErrorMessage = "Generate a code first, then simulate."
+            return
+        }
+        let postId = item.id ?? ""
+        Task {
+            do {
+                let simulatedUserId: String
+                if let chat = try await ChatService().fetchChat(
+                    forPostId: postId,
+                    userId: AppConfig.currentUserId
+                ) {
+                    simulatedUserId = chat.userId
+                } else if let chat = try await ChatService().fetchAllPoliceChats()
+                    .first(where: { $0.postId == postId }) {
+                    simulatedUserId = chat.userId
+                } else {
+                    simulatedUserId = AppConfig.currentUserId
+                }
+
+                let service = ClaimTokenService()
+                let token = try await service.fetchToken(nonce: payload.nonce)
+                try await service.redeemToken(
+                    token,
+                    consumedByUserId: simulatedUserId
+                )
+                // observeConsumption will fire and handle drawer dismiss + navigation.
+            } catch {
+                qrErrorMessage = "Simulate failed: \(error.localizedDescription)"
+            }
+        }
+    }
+
+    // Open location in Apple Maps with directions
+    private func openInMaps() {
+        let coordinate = CLLocationCoordinate2D(
+            latitude: item.coordinate.latitude,
+            longitude: item.coordinate.longitude
+        )
+        
+        let placemark = MKPlacemark(coordinate: coordinate)
+        let mapItem = MKMapItem(placemark: placemark)
+        mapItem.name = item.lastSeenLocationText.isEmpty ? item.title : item.lastSeenLocationText
+        
+        // Open Maps with directions option
+        mapItem.openInMaps(launchOptions: [
+            MKLaunchOptionsDirectionsModeKey: MKLaunchOptionsDirectionsModeWalking
+        ])
+    }
     
     var body: some View {
         ScrollView(showsIndicators: false) {
@@ -80,7 +252,7 @@ struct PostDetailView: View {
                                     .foregroundStyle(Color(.systemGray))
                             )
 
-                        Text(viewModel.reporterName)
+                        Text(reporterName)
                             .font(.system(size: 15))
                             .foregroundStyle(.primary)
                     }
@@ -131,7 +303,14 @@ struct PostDetailView: View {
                     .frame(maxWidth: .infinity)
                     .frame(height: 220)
                     .clipShape(RoundedRectangle(cornerRadius: 14))
-                    .disabled(true)   // non-interactive, tap to open Maps if needed
+                    .disabled(true)
+                    .onTapGesture {
+                        openInMaps()
+                    }
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14)
+                            .strokeBorder(Color(.systemGray5), lineWidth: 1)
+                    )
                     
                     HStack(spacing: 6) {
                         Image(systemName: "mappin.circle.fill")
@@ -140,55 +319,142 @@ struct PostDetailView: View {
                         Text(item.lastSeenLocationText)
                             .font(.system(size: 14, weight: .medium))
                             .foregroundStyle(.primary)
+                        
+                        Spacer()
+                        
+                        // "Open in Maps" button
+                        Button {
+                            openInMaps()
+                        } label: {
+                            HStack(spacing: 4) {
+                                Text("Get Directions")
+                                    .font(.system(size: 13, weight: .medium))
+                                Image(systemName: "arrow.up.right")
+                                    .font(.system(size: 11, weight: .semibold))
+                            }
+                            .foregroundStyle(Color(red: 0.55, green: 0.60, blue: 0.85))
+                        }
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 16)
                 .padding(.top, 20)
                 
-                Button {
-                    Task {
-                        isCreatingChat = true
-                        let now = Timestamp()
-                        let newChat = Chat(
-                            postId: item.id ?? "",
-                            userId: AppConfig.currentUserId,
-                            policeId: "campus-police",
-                            itemTitle: item.title,
-                            itemImageUrl: item.photoUrls.first,
-                            lastMessage: "",
-                            lastMessageAt: now,
-                            createdAt: now,
-                            updatedAt: now
-                        )
-                        do {
-                            let chatId = try await ChatService().createChat(newChat)
-                            navigateToChatId = chatId
-                        } catch {
-                            chatViewModel.errorMessage = error.localizedDescription
+                // Police-only: generate a one-time, time-limited QR code for handoff
+                if authVM.isAdmin {
+                    Button {
+                        generateClaimQR()
+                    } label: {
+                        HStack(spacing: 8) {
+                            if isGeneratingQR {
+                                ProgressView()
+                                    .progressViewStyle(.circular)
+                                    .tint(Color(red: 0.55, green: 0.60, blue: 0.85))
+                            } else {
+                                Image(systemName: "qrcode")
+                                    .font(.system(size: 16, weight: .semibold))
+                                Text("Show QR Code")
+                                    .font(.system(size: 16, weight: .semibold))
+                            }
                         }
-                        isCreatingChat = false
+                        .foregroundStyle(Color(red: 0.55, green: 0.60, blue: 0.85))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .background(Color.white)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 14)
+                                .strokeBorder(Color(red: 0.55, green: 0.60, blue: 0.85), lineWidth: 1.5)
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: 14))
                     }
-                } label: {
-                    if isCreatingChat {
-                        ProgressView()
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 16)
-                            .background(Color(red: 0.55, green: 0.60, blue: 0.85))
-                            .clipShape(RoundedRectangle(cornerRadius: 14))
-                    } else {
-                        Text("Take Action")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 16)
-                            .background(Color(red: 0.55, green: 0.60, blue: 0.85))
-                            .clipShape(RoundedRectangle(cornerRadius: 14))
+                    .disabled(isGeneratingQR)
+                    .padding(.horizontal, 16)
+                    .padding(.top, 24)
+
+                    if let qrErrorMessage {
+                        Text(qrErrorMessage)
+                            .font(.system(size: 13))
+                            .foregroundStyle(.red)
+                            .padding(.horizontal, 16)
+                            .padding(.top, 8)
                     }
                 }
-                .disabled(isCreatingChat)
-                .padding(.horizontal, 16)
-                .padding(.top, 24)
+
+                // Owner of a lost post: scan the QR the officer is showing, to claim.
+                if !authVM.isAdmin && isOwnPost && item.type == .lost {
+                    Button {
+                        showScanner = true
+                    } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: "qrcode.viewfinder")
+                                .font(.system(size: 16, weight: .semibold))
+                            Text("Scan QR to Claim")
+                                .font(.system(size: 16, weight: .semibold))
+                        }
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .background(Color(red: 0.55, green: 0.60, blue: 0.85))
+                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 24)
+                }
+
+                // Only show "Take Action" button if this is NOT the current user's post
+                if !isOwnPost {
+                    Button {
+                        guard !isCreatingChat else { return }
+                        isCreatingChat = true
+                        Task {
+                            let chatService = ChatService()
+                            let userId = AppConfig.placeholderUserId
+                            do {
+                                if let existing = try await chatService.fetchChat(forPostId: item.id ?? "", userId: userId) {
+                                    activeChatId = existing.id
+                                } else {
+                                    let now = Timestamp()
+                                    let chat = Chat(
+                                        postId: item.id ?? "",
+                                        userId: userId,
+                                        policeId: "campus-police-001",
+                                        itemTitle: item.title,
+                                        itemImageUrl: item.primaryImageUrl,
+                                        lastMessage: "",
+                                        lastMessageAt: now,
+                                        status: .active,
+                                        createdAt: now,
+                                        updatedAt: now
+                                    )
+                                    let chatId = try await chatService.createChat(chat)
+                                    activeChatId = chatId
+                                }
+                            } catch {
+                                print("[TakeAction] Error: \(error)")
+                            }
+                            isCreatingChat = false
+                        }
+                    } label: {
+                        if isCreatingChat {
+                            ProgressView()
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 16)
+                                .background(Color(red: 0.55, green: 0.60, blue: 0.85))
+                                .clipShape(RoundedRectangle(cornerRadius: 14))
+                        } else {
+                            Text("Take Action")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundStyle(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 16)
+                                .background(Color(red: 0.55, green: 0.60, blue: 0.85))
+                                .clipShape(RoundedRectangle(cornerRadius: 14))
+                        }
+                    }
+                    .disabled(isCreatingChat)
+                    .padding(.horizontal, 16)
+                    .padding(.top, 24)
+                }
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Similar Items")
                         .font(.system(size: 15, weight: .semibold))
@@ -226,13 +492,44 @@ struct PostDetailView: View {
         .navigationTitle("Report Details")
         .navigationBarTitleDisplayMode(.inline)
         .background(Color(.systemGroupedBackground))
-        .navigationDestination(item: $navigateToChatId) { chatId in
-            ChatDetailView(chatId: chatId, contactName: "Campus Police")
-                .environmentObject(chatViewModel)
+        .navigationDestination(item: $activeChatId) { chatId in
+            ChatDetailView(
+                chatId: chatId,
+                contactName: authVM.isAdmin ? (reporterName.isEmpty ? "Student" : reporterName) : "Campus Police",
+                postId: item.id ?? "",
+                isAdmin: authVM.isAdmin
+            )
+            .environmentObject(resolvedChatViewModel)
+        }
+        .sheet(isPresented: $showQRSheet, onDismiss: {
+            stopClaimListener()
+        }) {
+            QRCodeDrawerView(
+                itemCode: qrPayload?.encoded ?? "",
+                itemTitle: item.title,
+                expiresAt: qrPayload?.expiresAt,
+                onSimulateClaim: nil // authVM.isAdmin ? { simulateStudentScan() } : nil
+            )
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+        }
+        .fullScreenCover(isPresented: $showScanner) {
+            QRScannerView(claimPostId: item.id ?? "") { chatId in
+                showScanner = false
+                if let chatId {
+                    activeChatId = chatId
+                }
+            }
         }
         .task {
-            await viewModel.fetchReporterName(userId: item.createdBy)
+            // Only fetch reporter name if not already in reporterInfo
+            if item.reporterInfo == nil {
+                await viewModel.fetchReporterName(userId: item.createdBy)
+            }
             similarItems = await viewModel.fetchSimilarPosts(to: item, limit: 6)
+        }
+        .onDisappear {
+            stopClaimListener()
         }
     }
 }
@@ -241,5 +538,6 @@ struct PostDetailView: View {
 #Preview {
     NavigationStack {
         PostDetailView(item: Post.mockItems[0])
+            .environmentObject(AuthViewModel())
     }
 }

@@ -81,7 +81,7 @@ struct ItemImageCarouselView: View {
     @ViewBuilder
     private func carouselImage(for imageName: String) -> some View {
         if let url = URL(string: imageName), url.scheme == "https" || url.scheme == "http" {
-            AsyncImage(url: url) { phase in
+            CachedAsyncImage(url: url) { phase in
                 switch phase {
                 case .success(let image):
                     image

@@ -2,6 +2,10 @@
 //  QRScannerView.swift
 //  foundit
 //
+//  Full-screen camera scanner for the claim flow. Uses AVFoundation to
+//  read QR codes and presents a result sheet that verifies + redeems
+//  the scanned code against Firestore.
+//
 
 import SwiftUI
 import AVFoundation
@@ -9,10 +13,21 @@ import AVFoundation
 // MARK: - Scanner Screen
 
 struct QRScannerView: View {
+    /// When non-empty, the scanned token's postId must match this value.
+    /// Scoping the scanner to one post blocks scanning a code meant for a different item.
+    let claimPostId: String
+    /// Called after a successful claim. The parent uses the chatId to push the
+    /// student into the chat thread as the shared confirmation surface.
+    let onClaimed: (_ chatId: String?) -> Void
     @Environment(\.dismiss) private var dismiss
     @State private var scannedCode: String?
     @State private var isTorchOn = false
     @State private var showResultSheet = false
+
+    init(claimPostId: String = "", onClaimed: @escaping (String?) -> Void = { _ in }) {
+        self.claimPostId = claimPostId
+        self.onClaimed = onClaimed
+    }
 
     var body: some View {
         ZStack {
@@ -91,65 +106,144 @@ struct QRScannerView: View {
         .sheet(isPresented: $showResultSheet, onDismiss: {
             scannedCode = nil
         }) {
-            QRResultSheet(code: scannedCode ?? "")
-                .presentationDetents([.medium])
-                .presentationDragIndicator(.visible)
+            QRResultSheet(code: scannedCode ?? "", expectedPostId: claimPostId) { chatId in
+                showResultSheet = false
+                onClaimed(chatId)
+            }
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
         }
     }
 }
 
 // MARK: - Scan Result Sheet
 
+/// Three states the result sheet moves through:
+/// `verifying` on appear → `success` or `failure` once Firestore responds.
+enum QRRedemptionState {
+    case verifying
+    case success(at: Date, chatId: String?)
+    case failure(message: String)
+}
+
+/// Sheet shown after the camera reads a QR. Runs verification on `.task`,
+/// then renders a confirmation UI or a specific error.
 struct QRResultSheet: View {
+    /// The raw string the scanner read from the QR.
     let code: String
+    /// When non-empty, the scanned token's postId must match this value —
+    /// rejects codes that belong to a different post.
+    let expectedPostId: String
+    /// Called when the user taps Done/Open Chat on the success screen.
+    /// Receives the chatId to navigate to, if any.
+    let onCompleted: (_ chatId: String?) -> Void
+
     @Environment(\.dismiss) private var dismiss
+    @State private var state: QRRedemptionState = .verifying
 
     var body: some View {
         VStack(spacing: 0) {
-            Spacer().frame(height: 24)
+            Spacer().frame(height: 32)
 
-            Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 56))
+            switch state {
+            case .verifying:
+                verifyingView
+            case .success(let when, let chatId):
+                successView(returnedAt: when, chatId: chatId)
+            case .failure(let message):
+                failureView(message: message)
+            }
+
+            Spacer()
+        }
+        .task { await verifyAndRedeem() }
+    }
+
+    private var verifyingView: some View {
+        VStack(spacing: 16) {
+            ProgressView().scaleEffect(1.4)
+            Text("Verifying claim code…")
+                .font(.system(size: 15, weight: .medium))
+                .foregroundColor(.gray)
+        }
+    }
+
+    private func successView(returnedAt: Date, chatId: String?) -> some View {
+        VStack(spacing: 0) {
+            Image(systemName: "checkmark.seal.fill")
+                .font(.system(size: 64))
                 .foregroundColor(.green)
 
             Spacer().frame(height: 16)
 
-            Text("QR Code Scanned")
-                .font(.system(size: 22, weight: .bold))
+            Text("Item Returned")
+                .font(.system(size: 24, weight: .bold))
                 .foregroundColor(.black)
 
             Spacer().frame(height: 8)
 
-            Text("Item identified successfully")
+            Text(chatId == nil
+                 ? "The return has been logged."
+                 : "Opening your chat with the police…")
                 .font(.system(size: 14))
                 .foregroundColor(.gray)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 28)
 
             Spacer().frame(height: 24)
 
-            // Code display
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Item Code")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(.gray)
-                    Text(code)
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(.black)
-                }
-                Spacer()
-                Image(systemName: "doc.on.doc")
-                    .font(.system(size: 18))
-                    .foregroundColor(.gray)
+            VStack(alignment: .leading, spacing: 12) {
+                metaRow(icon: "clock",
+                        label: "Time",
+                        value: formatted(returnedAt))
+                metaRow(icon: "number",
+                        label: "Reference",
+                        value: String(code.suffix(12)))
             }
             .padding(16)
             .background(Color(.systemGray6))
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .padding(.horizontal, 28)
 
-            Spacer().frame(height: 24)
+            Spacer().frame(height: 32)
+
+            Button { onCompleted(chatId) } label: {
+                Text(chatId == nil ? "DONE" : "OPEN CHAT")
+                    .font(.system(size: 17, weight: .bold))
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 54)
+                    .background(Color.green)
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
+            }
+            .padding(.horizontal, 28)
+        }
+    }
+
+    private func failureView(message: String) -> some View {
+        VStack(spacing: 0) {
+            Image(systemName: "xmark.octagon.fill")
+                .font(.system(size: 56))
+                .foregroundColor(.red)
+
+            Spacer().frame(height: 16)
+
+            Text("Couldn't Verify Code")
+                .font(.system(size: 22, weight: .bold))
+                .foregroundColor(.black)
+
+            Spacer().frame(height: 8)
+
+            Text(message)
+                .font(.system(size: 14))
+                .foregroundColor(.gray)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 28)
+
+            Spacer().frame(height: 32)
 
             Button(action: { dismiss() }) {
-                Text("VIEW ITEM DETAILS")
+                Text("Try Again")
                     .font(.system(size: 17, weight: .bold))
                     .foregroundColor(.black)
                     .frame(maxWidth: .infinity)
@@ -158,16 +252,73 @@ struct QRResultSheet: View {
                     .clipShape(RoundedRectangle(cornerRadius: 14))
             }
             .padding(.horizontal, 28)
+        }
+    }
 
-            Spacer().frame(height: 12)
-
-            Button(action: { dismiss() }) {
-                Text("Scan Another")
-                    .font(.system(size: 15, weight: .medium))
+    private func metaRow(icon: String, label: String, value: String) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundColor(.gray)
+                .frame(width: 18)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(label)
+                    .font(.system(size: 12, weight: .medium))
                     .foregroundColor(.gray)
+                Text(value)
+                    .font(.system(size: 15, weight: .semibold, design: .monospaced))
+                    .foregroundColor(.black)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
             }
-
             Spacer()
+        }
+    }
+
+    private func formatted(_ date: Date) -> String {
+        let f = DateFormatter()
+        f.dateStyle = .medium
+        f.timeStyle = .short
+        return f.string(from: date)
+    }
+
+    /// The verification + redemption pipeline. Runs on sheet appear.
+    /// Each step can short-circuit with a specific error the UI shows directly.
+    ///   1. Parse the scanned string into a nonce.
+    ///   2. Look up the token in Firestore.
+    ///   3. Check the token belongs to the expected post (if scoped).
+    ///   4. Check it hasn't already been consumed or expired.
+    ///   5. Redeem it atomically — flips item to returned and closes the chat.
+    private func verifyAndRedeem() async {
+        // 1. Parse
+        guard let nonce = ClaimTokenService.parseNonce(from: code) else {
+            state = .failure(message: ClaimTokenError.invalidPayload.errorDescription ?? "Invalid code.")
+            return
+        }
+
+        let service = ClaimTokenService()
+        do {
+            // 2. Fetch
+            let token = try await service.fetchToken(nonce: nonce)
+            // 3. Post-id guard
+            if !expectedPostId.isEmpty && token.postId != expectedPostId {
+                state = .failure(message: "This code is for a different item.")
+                return
+            }
+            // 4. Freshness checks
+            if token.isConsumed { throw ClaimTokenError.alreadyConsumed }
+            if token.isExpired  { throw ClaimTokenError.expired }
+
+            // 5. Atomic redemption
+            let chatId = try await service.redeemToken(
+                token,
+                consumedByUserId: AppConfig.currentUserId
+            )
+            state = .success(at: Date(), chatId: chatId)
+        } catch let err as ClaimTokenError {
+            state = .failure(message: err.errorDescription ?? "Verification failed.")
+        } catch {
+            state = .failure(message: error.localizedDescription)
         }
     }
 }

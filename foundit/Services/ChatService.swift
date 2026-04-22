@@ -16,9 +16,26 @@ class ChatService {
         return ref.documentID
     }
 
+    func fetchChat(forPostId postId: String, userId: String) async throws -> Chat? {
+        let snapshot = try await db.collection(collection)
+            .whereField("postId", isEqualTo: postId)
+            .whereField("userId", isEqualTo: userId)
+            .limit(to: 1)
+            .getDocuments()
+        return try snapshot.documents.first.map { try $0.data(as: Chat.self) }
+    }
+
     func fetchChats(forUserId userId: String) async throws -> [Chat] {
         let snapshot = try await db.collection(collection)
             .whereField("userId", isEqualTo: userId)
+            .order(by: "lastMessageAt", descending: true)
+            .getDocuments()
+        return try snapshot.documents.compactMap { try $0.data(as: Chat.self) }
+    }
+
+    /// Fetches all chats for the police shared inbox (all conversations).
+    func fetchAllPoliceChats() async throws -> [Chat] {
+        let snapshot = try await db.collection(collection)
             .order(by: "lastMessageAt", descending: true)
             .getDocuments()
         return try snapshot.documents.compactMap { try $0.data(as: Chat.self) }
@@ -42,6 +59,87 @@ class ChatService {
         ], forDocument: chatRef)
 
         try await batch.commit()
+    }
+
+    /// Officer taps "Mark as Ready for Pickup" in chat. All three writes
+    /// below run in a single Firestore batch so they either all succeed
+    /// or all fail — avoids half-updated state.
+    ///   1. Flip the chat to `.waitingForPickup` + refresh the inbox preview.
+    ///   2. Update the matching `items` doc — or create one if none exists.
+    ///      Auto-provisioning guarantees the later QR claim flow always has
+    ///      an itemId to reference.
+    ///   3. Post a system message so both sides see the status change.
+    func markReadyForPickup(chatId: String, postId: String) async throws {
+        let batch = db.batch()
+        let now = Timestamp()
+
+        // Fetch the chat once so we can capture user/police IDs for a new item if needed.
+        let chatDoc = try await db.collection(collection).document(chatId).getDocument()
+        let chat = try? chatDoc.data(as: Chat.self)
+
+        // 1. Chat status + inbox preview
+        let chatRef = db.collection(collection).document(chatId)
+        batch.updateData([
+            "status": Chat.Status.waitingForPickup.rawValue,
+            "lastMessage": "This item has been marked as ready for pickup at the police station.",
+            "lastMessageAt": now,
+            "updatedAt": now
+        ], forDocument: chatRef)
+
+        // 2. Update existing item, or provision a new one.
+        let itemSnapshot = try await db.collection("items")
+            .whereField("sourcePostId", isEqualTo: postId)
+            .limit(to: 1)
+            .getDocuments()
+        if let itemDoc = itemSnapshot.documents.first {
+            batch.updateData([
+                "status": ItemStatus.waitingForPickup.rawValue
+            ], forDocument: itemDoc.reference)
+        } else {
+            // No item record yet — create one now so the QR flow has something to point at.
+            let itemRef = db.collection("items").document()
+            let newItem = Item(
+                sourcePostId: postId,
+                status: .waitingForPickup,
+                qrCodeValue: UUID().uuidString,
+                receivedAt: now,
+                returnedAt: nil,
+                foundBy: chat?.userId ?? "",
+                collectedBy: chat?.policeId ?? AppConfig.policeSenderId
+            )
+            try batch.setData(from: newItem, forDocument: itemRef)
+        }
+
+        // Post system message
+        let msgRef = db.collection(collection)
+            .document(chatId)
+            .collection("messages")
+            .document()
+        let systemMessage = Message(
+            senderId: "system",
+            senderRole: .system,
+            type: .system,
+            text: "This item has been marked as ready for pickup at the police station.",
+            photoUrl: nil,
+            sentAt: now
+        )
+        try batch.setData(from: systemMessage, forDocument: msgRef)
+
+        try await batch.commit()
+    }
+
+    func chatPublisher(chatId: String) -> AnyPublisher<Chat?, Error> {
+        let subject = PassthroughSubject<Chat?, Error>()
+        db.collection(collection).document(chatId)
+            .addSnapshotListener { snapshot, error in
+                if let error = error {
+                    subject.send(completion: .failure(error))
+                } else if let snapshot = snapshot {
+                    let chat = try? snapshot.data(as: Chat.self)
+                    subject.send(chat)
+                }
+            }
+        return subject.eraseToAnyPublisher()
     }
 
     func messagesPublisher(chatId: String) -> AnyPublisher<[Message], Error> {

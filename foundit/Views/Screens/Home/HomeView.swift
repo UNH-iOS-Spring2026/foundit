@@ -6,20 +6,22 @@
 //
 
 import SwiftUI
+import FirebaseAuth
 
 struct HomeView: View {
     @StateObject private var viewModel = HomeViewModel()
+    @StateObject private var notificationViewModel = NotificationViewModel()
     @EnvironmentObject var postViewModel: PostViewModel
+    @EnvironmentObject var chatViewModel: ChatViewModel
     @EnvironmentObject var authVM: AuthViewModel
     @Binding var searchText: String
     @State private var navigateToReport: Bool = false
-    @State private var showFilterSheet: Bool = false
-    @State private var selectedFilter: PostType? = nil
+    @State private var showNotifications: Bool = false
     @State private var postToDelete: Post? = nil
     @State private var showDeleteConfirmation = false
     @State private var postToEdit: Post? = nil
     @State private var navigateToEdit: Bool = false
-    @State private var showAllItems: Bool = false
+    @State private var shouldRefreshAfterPost: Bool = false
 
     
     private let columns = [
@@ -33,45 +35,50 @@ struct HomeView: View {
             HomeHeaderView(
                 userName: authVM.currentUser?.displayName ?? "User",
                 userEmail: authVM.currentUser?.email ?? "",
-                hasNotification: true,
+                hasNotification: notificationViewModel.unreadCount > 0,
                 onPost: {
                     navigateToReport = true
-                })
-            // MARK: Search + Filter
-            HStack(spacing: 10){
-                HStack {
-                    Image(systemName: "magnifyingglass")
-                        .foregroundStyle(.secondary)
-                    TextField("Search items…", text: $viewModel.searchText)
-                        .autocorrectionDisabled()
+                },
+                onNotificationTap: {
+                    showNotifications = true
                 }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 10)
-                .background(Color(.systemGray6))
-                .clipShape(Capsule())
-                .padding(.horizontal, 12)
-                
-                
-                Button {
-                    showFilterSheet = true
-                } label: {
-                    Image(.filter)
-                        .font(.system(size: 1))
-                        .foregroundStyle(Color(red: 0.55, green: 0.60, blue: 0.85))
-                }
-                .padding(.trailing)
-            }
-            
+            )
+            // MARK: Search
             HStack {
+                Image(systemName: "magnifyingglass")
+                    .foregroundStyle(.secondary)
+                TextField("Search items…", text: $viewModel.searchText)
+                    .autocorrectionDisabled()
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(Color(.systemGray6))
+            .clipShape(Capsule())
+            .padding(.horizontal, 16)
+            
+            // MARK: Section Header
+            HStack(alignment: .center) {
+                Text("Recent Items")
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundStyle(.primary)
+                
                 Spacer()
-                Button("See all") {
-                    showAllItems = true
+                
+                NavigationLink(destination: AllItemsView()
+                    .environmentObject(postViewModel)
+                    .environmentObject(chatViewModel)
+                    .environmentObject(authVM)
+                ) {
+                    HStack(spacing: 4) {
+                        Text("See all")
+                            .font(.system(size: 15, weight: .medium))
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 12, weight: .medium))
+                    }.foregroundStyle(Color(red: 0.55, green: 0.60, blue: 0.85))
                 }
-                .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(Color(red: 0.55, green: 0.60, blue: 0.85))
             }
             .padding(.horizontal, 16)
-            .padding(.top, 6)
+            .padding(.top, 16)
             
             // Grid
             ScrollView {
@@ -98,7 +105,7 @@ struct HomeView: View {
                     }
                     .padding(.top, 60)
                     .padding(.horizontal, 32)
-                } else if viewModel.filteredItems.isEmpty {
+                } else if viewModel.limitedItems.isEmpty {
                     VStack(spacing: 12) {
                         Image(systemName: "magnifyingglass")
                             .font(.system(size: 40))
@@ -112,9 +119,9 @@ struct HomeView: View {
                     .padding(.top, 60)
                 } else {
                     LazyVGrid(columns: columns, spacing: 12) {
-                        ForEach(viewModel.filteredItems) { item in
+                        ForEach(viewModel.limitedItems) { item in
                             NavigationLink {
-                                PostDetailView(item: item)
+                                PostDetailView(item: item, chatViewModel: chatViewModel)
                             } label: {
                                 ItemCardView(
                                     item: item,
@@ -126,14 +133,14 @@ struct HomeView: View {
                                         postToEdit = item
                                         navigateToEdit = true
                                     },
-                                    canDelete: item.createdBy == AppConfig.placeholderUserId,
-                                    canEdit: item.createdBy == AppConfig.placeholderUserId
+                                    canDelete: item.createdBy == authVM.currentUser?.uid,
+                                    canEdit: item.createdBy == authVM.currentUser?.uid
                                 )
                             }
                             .buttonStyle(.plain)
                         }
                     }
-                    .padding(.horizontal, 16)
+                    .padding(.horizontal, 12)
                     .padding(.top, 8)
                     .padding(.bottom, 20)
                 }
@@ -144,8 +151,13 @@ struct HomeView: View {
             Spacer()
         }
         .navigationDestination(isPresented: $navigateToReport) {
-            PostItemView()
+            PostItemView(onPostCreated: {
+                shouldRefreshAfterPost = true
+            })
                 .environmentObject(postViewModel)
+        }
+        .navigationDestination(isPresented: $showNotifications) {
+            NotificationView()
         }
         .navigationDestination(isPresented: $navigateToEdit) {
             if let post = postToEdit {
@@ -153,30 +165,27 @@ struct HomeView: View {
                     .environmentObject(postViewModel)
             }
         }
-        .sheet(isPresented: $showFilterSheet) {
-            FilterSheetView(selectedFilter: $selectedFilter) {
-                Task {
-                    if let filter = selectedFilter {
-                        await viewModel.loadItems(ofType: filter)
-                    } else {
-                        await viewModel.loadItems()
-                    }
-                }
-            }
-            .presentationDetents([.medium])
-        }
-        .fullScreenCover(isPresented: $showAllItems) {
-            AllItemsView()
-                .environmentObject(postViewModel)
+        .task {
+            // Fetch notification unread count when view appears
+            await notificationViewModel.refreshUnreadCount()
         }
         .onChange(of: searchText) { _, newValue in
             viewModel.searchText = newValue
         }
-        .onChange(of: navigateToReport) { oldValue, newValue in
-            // When returning from PostItemView (navigateToReport changes from true to false)
+        .onChange(of: showNotifications) { oldValue, newValue in
+            // When returning from notifications view, refresh the unread count
             if oldValue == true && newValue == false {
                 Task {
+                    await notificationViewModel.refreshUnreadCount()
+                }
+            }
+        }
+        .onChange(of: navigateToReport) { oldValue, newValue in
+            // When returning from PostItemView (navigateToReport changes from true to false)
+            if oldValue == true && newValue == false && shouldRefreshAfterPost {
+                Task {
                     await viewModel.refreshItems()
+                    shouldRefreshAfterPost = false
                 }
             }
         }

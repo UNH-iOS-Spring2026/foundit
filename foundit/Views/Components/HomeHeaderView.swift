@@ -13,6 +13,7 @@ struct HomeHeaderView: View {
     let userEmail: String
     let hasNotification: Bool
     var onPost: () -> Void = {}
+    var onNotificationTap: () -> Void = {}
     
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -38,16 +39,18 @@ struct HomeHeaderView: View {
                 Spacer()
                 
                 // Notification bell
-                ZStack(alignment: .topTrailing) {
-                    Image(systemName: "bell")
-                        .font(.system(size: 22))
-                        .foregroundStyle(.white)
-                    
-                    if hasNotification {
-                        Circle()
-                            .fill(.red)
-                            .frame(width: 9, height: 9)
-                            .offset(x: 2, y: -2)
+                Button(action: onNotificationTap) {
+                    ZStack(alignment: .topTrailing) {
+                        Image(systemName: "bell")
+                            .font(.system(size: 22))
+                            .foregroundStyle(.white)
+                        
+                        if hasNotification {
+                            Circle()
+                                .fill(.red)
+                                .frame(width: 9, height: 9)
+                                .offset(x: 2, y: -2)
+                        }
                     }
                 }
             }
@@ -68,12 +71,11 @@ struct HomeHeaderView: View {
                 Button(action: onPost) {
                     Text("Post")
                         .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(.primary)
-                        .padding(.horizontal, 24)
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 20)
                         .padding(.vertical, 10)
-                        .overlay(
-                            Capsule().stroke(Color(FounditColors.primary), lineWidth: 1.5)
-                        )
+                        .background(Color(FounditColors.primary))
+                        .clipShape(Capsule())
                 }
             }
             .padding(16)

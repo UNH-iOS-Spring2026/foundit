@@ -2,14 +2,12 @@
 //  SplashView.swift
 //  foundit
 //
-//  Created by Divya Panthi on 10/03/2026.
-//  Updated by Ashish on 03/26/2026
-//
 
 import SwiftUI
 
 struct SplashView: View {
 	@State private var goToOnboarding = false
+	@EnvironmentObject var authVM: AuthViewModel
 
 	var body: some View {
 		ZStack {
@@ -48,7 +46,7 @@ struct SplashView: View {
 				.padding(.bottom, 60)
 
 				NavigationLink(
-					destination: OnboardingView(),
+					destination: OnboardingView().environmentObject(authVM),
 					isActive: $goToOnboarding
 				) {
 					EmptyView()
@@ -63,6 +61,6 @@ struct SplashView: View {
 #Preview {
 	NavigationStack {
 		SplashView()
+			.environmentObject(AuthViewModel())
 	}
-	.environmentObject(AuthViewModel())
 }

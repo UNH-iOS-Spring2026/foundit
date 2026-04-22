@@ -2,11 +2,7 @@
 //  LoginView.swift
 //  foundit
 //
-
-//	Source of inspiration for UI: ChatGPT (OpenAI)
-//  Created by Ashish Khadka on 18/03/2026.
-
-//
+//  Source of inspiration for UI: ChatGPT (OpenAI)
 
 import SwiftUI
 
@@ -63,7 +59,6 @@ struct LoginView: View {
 						.padding(.horizontal, 28)
 						.padding(.top, 10)
 				}
-
 				Spacer().frame(height: 16)
 
 				Button {
@@ -84,6 +79,45 @@ struct LoginView: View {
 					}
 					.frame(height: 54)
 					.background(Color(FounditColors.primary))
+					.clipShape(RoundedRectangle(cornerRadius: 14))
+				}
+				.padding(.horizontal, 28)
+				.disabled(authVM.isLoading)
+
+				Spacer().frame(height: 14)
+
+				HStack {
+					line
+					Text("or")
+						.font(.system(size: 13))
+						.foregroundColor(.gray)
+					line
+				}
+				.padding(.horizontal, 28)
+
+				Spacer().frame(height: 14)
+
+				Button {
+					Task {
+						await authVM.signInWithGoogle()
+					}
+				} label: {
+					HStack(spacing: 12) {
+						Spacer()
+						Image(systemName: "globe")
+							.font(.system(size: 18, weight: .medium))
+							.foregroundColor(.black)
+						Text("Continue with Google")
+							.font(.system(size: 16, weight: .semibold))
+							.foregroundColor(.black)
+						Spacer()
+					}
+					.frame(height: 54)
+					.background(Color.white)
+					.overlay(
+						RoundedRectangle(cornerRadius: 14)
+							.stroke(Color.gray.opacity(0.3), lineWidth: 1)
+					)
 					.clipShape(RoundedRectangle(cornerRadius: 14))
 				}
 				.padding(.horizontal, 28)
@@ -122,11 +156,10 @@ struct LoginView: View {
 		.background(Color.white.ignoresSafeArea())
 		.navigationBarBackButtonHidden(true)
 	}
-}
 
-#Preview {
-	NavigationStack {
-		LoginView()
-			.environmentObject(AuthViewModel())
+	private var line: some View {
+		Rectangle()
+			.fill(Color.gray.opacity(0.25))
+			.frame(height: 1)
 	}
 }
