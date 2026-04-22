@@ -10,6 +10,7 @@ import FirebaseAuth
 
 struct HomeView: View {
     @StateObject private var viewModel = HomeViewModel()
+    @StateObject private var notificationViewModel = NotificationViewModel()
     @EnvironmentObject var postViewModel: PostViewModel
     @EnvironmentObject var chatViewModel: ChatViewModel
     @EnvironmentObject var authVM: AuthViewModel
@@ -34,7 +35,7 @@ struct HomeView: View {
             HomeHeaderView(
                 userName: authVM.currentUser?.displayName ?? "User",
                 userEmail: authVM.currentUser?.email ?? "",
-                hasNotification: true,
+                hasNotification: notificationViewModel.unreadCount > 0,
                 onPost: {
                     navigateToReport = true
                 },
@@ -164,8 +165,20 @@ struct HomeView: View {
                     .environmentObject(postViewModel)
             }
         }
+        .task {
+            // Fetch notification unread count when view appears
+            await notificationViewModel.refreshUnreadCount()
+        }
         .onChange(of: searchText) { _, newValue in
             viewModel.searchText = newValue
+        }
+        .onChange(of: showNotifications) { oldValue, newValue in
+            // When returning from notifications view, refresh the unread count
+            if oldValue == true && newValue == false {
+                Task {
+                    await notificationViewModel.refreshUnreadCount()
+                }
+            }
         }
         .onChange(of: navigateToReport) { oldValue, newValue in
             // When returning from PostItemView (navigateToReport changes from true to false)
