@@ -4,6 +4,7 @@
 //
 
 import SwiftUI
+import Combine
 import CoreImage.CIFilterBuiltins
 
 // MARK: - QR Code Drawer (Bottom Sheet)
@@ -11,7 +12,42 @@ import CoreImage.CIFilterBuiltins
 struct QRCodeDrawerView: View {
     let itemCode: String
     let itemTitle: String
+    let expiresAt: Date?
+    /// When provided, a demo button is rendered that invokes this closure.
+    let onSimulateClaim: (() -> Void)?
     @Environment(\.dismiss) private var dismiss
+    @State private var now: Date = Date()
+    @State private var isSimulating = false
+
+    private let ticker = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+
+    init(
+        itemCode: String,
+        itemTitle: String,
+        expiresAt: Date? = nil,
+        onSimulateClaim: (() -> Void)? = nil
+    ) {
+        self.itemCode = itemCode
+        self.itemTitle = itemTitle
+        self.expiresAt = expiresAt
+        self.onSimulateClaim = onSimulateClaim
+    }
+
+    private var remaining: TimeInterval {
+        guard let expiresAt else { return 0 }
+        return max(0, expiresAt.timeIntervalSince(now))
+    }
+
+    private var isExpired: Bool {
+        expiresAt != nil && remaining <= 0
+    }
+
+    private var countdownText: String {
+        let total = Int(remaining)
+        let minutes = total / 60
+        let seconds = total % 60
+        return String(format: "Expires in %d:%02d", minutes, seconds)
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -26,6 +62,12 @@ struct QRCodeDrawerView: View {
                     Text(itemTitle)
                         .font(.system(size: 14))
                         .foregroundColor(.gray)
+                    if expiresAt != nil {
+                        Text(isExpired ? "Code expired" : countdownText)
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(isExpired ? .red : .orange)
+                            .padding(.top, 2)
+                    }
                 }
                 Spacer()
                 Button(action: { dismiss() }) {
@@ -49,6 +91,18 @@ struct QRCodeDrawerView: View {
                     .background(Color.white)
                     .clipShape(RoundedRectangle(cornerRadius: 20))
                     .shadow(color: .black.opacity(0.08), radius: 12, x: 0, y: 4)
+                    .opacity(isExpired ? 0.4 : 1.0)
+                    .overlay {
+                        if isExpired {
+                            Text("Code expired — close and reopen\nto regenerate.")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundColor(.red)
+                                .multilineTextAlignment(.center)
+                                .padding(10)
+                                .background(Color.white.opacity(0.9))
+                                .clipShape(RoundedRectangle(cornerRadius: 10))
+                        }
+                    }
             }
 
             Spacer().frame(height: 16)
@@ -98,8 +152,52 @@ struct QRCodeDrawerView: View {
             }
             .padding(.horizontal, 28)
 
+            if let onSimulateClaim {
+                Spacer().frame(height: 16)
+
+                Button {
+                    guard !isSimulating else { return }
+                    isSimulating = true
+                    onSimulateClaim()
+                } label: {
+                    HStack(spacing: 8) {
+                        if isSimulating {
+                            ProgressView().tint(.orange)
+                        } else {
+                            Image(systemName: "hand.tap.fill")
+                                .font(.system(size: 14))
+                        }
+                        Text(isSimulating ? "Simulating…" : "Simulate Student Scan")
+                            .font(.system(size: 14, weight: .semibold))
+                    }
+                    .foregroundColor(.orange)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 46)
+                    .background(Color.orange.opacity(0.08))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .strokeBorder(Color.orange.opacity(0.35),
+                                          style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                }
+                .disabled(isSimulating || isExpired)
+                .padding(.horizontal, 28)
+
+                Text("Demo only — redeems the code as if the student scanned it.")
+                    .font(.system(size: 11))
+                    .foregroundColor(.gray)
+                    .padding(.horizontal, 28)
+                    .padding(.top, 6)
+            }
+
             Spacer()
         }
+        .onReceive(ticker) { tick in
+            guard expiresAt != nil else { return }
+            now = tick
+        }
+        .onAppear { now = Date() }
     }
 
     private func generateQRCode(from string: String) -> UIImage? {

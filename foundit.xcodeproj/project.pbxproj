@@ -314,6 +314,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = foundit/Info.plist;
 				INFOPLIST_KEY_LSApplicationCategoryType = NO;
+				INFOPLIST_KEY_NSCameraUsageDescription = "foundit uses your camera to scan QR codes when claiming a returned item at the campus police station.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -349,6 +350,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = foundit/Info.plist;
 				INFOPLIST_KEY_LSApplicationCategoryType = NO;
+				INFOPLIST_KEY_NSCameraUsageDescription = "foundit uses your camera to scan QR codes when claiming a returned item at the campus police station.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

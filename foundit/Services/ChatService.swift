@@ -61,10 +61,15 @@ class ChatService {
         try await batch.commit()
     }
 
-    /// Mark a chat as waiting for pickup, update the linked item, and post a system message.
+    /// Mark a chat as waiting for pickup, update (or create) the linked item, and post a system message.
+    /// Creates an `Item` doc if none exists so downstream claim-token flow has an `itemId` to reference.
     func markReadyForPickup(chatId: String, postId: String) async throws {
         let batch = db.batch()
         let now = Timestamp()
+
+        // Fetch the chat once so we can capture user/police IDs for a new item if needed.
+        let chatDoc = try await db.collection(collection).document(chatId).getDocument()
+        let chat = try? chatDoc.data(as: Chat.self)
 
         // Update chat status
         let chatRef = db.collection(collection).document(chatId)
@@ -75,7 +80,7 @@ class ChatService {
             "updatedAt": now
         ], forDocument: chatRef)
 
-        // Update item status if one exists
+        // Update existing item, or provision a new one.
         let itemSnapshot = try await db.collection("items")
             .whereField("sourcePostId", isEqualTo: postId)
             .limit(to: 1)
@@ -84,6 +89,18 @@ class ChatService {
             batch.updateData([
                 "status": ItemStatus.waitingForPickup.rawValue
             ], forDocument: itemDoc.reference)
+        } else {
+            let itemRef = db.collection("items").document()
+            let newItem = Item(
+                sourcePostId: postId,
+                status: .waitingForPickup,
+                qrCodeValue: UUID().uuidString,
+                receivedAt: now,
+                returnedAt: nil,
+                foundBy: chat?.userId ?? "",
+                collectedBy: chat?.policeId ?? AppConfig.policeSenderId
+            )
+            try batch.setData(from: newItem, forDocument: itemRef)
         }
 
         // Post system message

@@ -21,6 +21,8 @@ struct Item: Identifiable, Codable {
     var returnedAt: Timestamp?
     var foundBy: String
     var collectedBy: String
+    var returnedByUserId: String?
+    var returnLocation: GeoPoint?
 }
 
 struct Location: Identifiable, Codable {
