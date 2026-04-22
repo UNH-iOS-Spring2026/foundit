@@ -19,12 +19,13 @@ struct PostDetailView: View {
     @State private var similarItems: [Post] = []
     @State private var activeChatId: String?
     @State private var isCreatingChat = false
-    @State private var showQRSheet = false
-    @State private var qrPayload: QRClaimPayload?
-    @State private var isGeneratingQR = false
-    @State private var qrErrorMessage: String?
-    @State private var showScanner = false
-    @State private var claimListener: ListenerRegistration?
+    // --- QR claim flow state ---
+    @State private var showQRSheet = false               // controls the QR drawer presentation
+    @State private var qrPayload: QRClaimPayload?        // current payload for the displayed QR
+    @State private var isGeneratingQR = false            // spinner state while provisioning + writing token
+    @State private var qrErrorMessage: String?           // inline error under the button
+    @State private var showScanner = false               // controls the full-screen scanner cover
+    @State private var claimListener: ListenerRegistration? // Firestore listener on the token doc
     
     private var resolvedChatViewModel: ChatViewModel {
         chatViewModel ?? fallbackChatViewModel
@@ -46,7 +47,12 @@ struct PostDetailView: View {
         return viewModel.reporterName
     }
     
-    // Police: fetch/provision the Item, write a fresh ClaimToken, then open the drawer.
+    /// Police-side entry point. Runs when the officer taps "Show QR Code":
+    ///   1. Look up — or provision — the `items` doc for this post so the
+    ///      claim token has a concrete itemId to reference.
+    ///   2. Build a fresh QR payload (unique nonce + 5-minute expiry).
+    ///   3. Write the token doc to Firestore so the scanner can verify it later.
+    ///   4. Open the drawer and start listening for the student's scan.
     private func generateClaimQR() {
         guard !isGeneratingQR else { return }
         let postId = item.id ?? ""
@@ -65,7 +71,8 @@ struct PostDetailView: View {
                 if let existingId = existing?.id {
                     itemId = existingId
                 } else {
-                    // No Item yet (police may be generating a QR before chat flow). Provision one now.
+                    // No item record yet — could happen if the officer generates a
+                    // QR before any "Ready for Pickup" step. Create one on the fly.
                     let fresh = Item(
                         sourcePostId: postId,
                         status: .waitingForPickup,
@@ -78,6 +85,7 @@ struct PostDetailView: View {
                     itemId = try await itemService.createItem(fresh)
                 }
 
+                // Fresh payload + backing Firestore doc so the scanner can verify later.
                 let payload = QRClaimPayload.generate(for: postId)
                 try await tokenService.createToken(
                     postId: postId,
@@ -97,8 +105,10 @@ struct PostDetailView: View {
         }
     }
 
-    // Police-side: watch for the student's claim. When the token gets consumed,
-    // close the drawer and jump the officer into the chat thread for this claim.
+    /// Attaches a Firestore snapshot listener to the issued claim token.
+    /// When the student redeems it, `consumedByUserId` becomes non-nil and
+    /// the listener fires — we tear it down, dismiss the drawer, and
+    /// navigate the officer into the matching chat thread.
     private func startClaimListener(nonce: String) {
         claimListener?.remove()
         let service = ClaimTokenService()
@@ -117,15 +127,18 @@ struct PostDetailView: View {
         }
     }
 
+    /// Detach the listener on drawer dismiss or when the view goes away,
+    /// so we don't leak a Firestore observer.
     private func stopClaimListener() {
         claimListener?.remove()
         claimListener = nil
     }
 
-    // Demo affordance: redeems the current QR token as if a student scanned it.
-    // Uses the existing chat's userId when available so the listener lands the
-    // officer in the right chat thread. Falls back to the current user's uid
-    // when no chat exists yet (e.g. QR generated before chat was started).
+    /// Demo-only shortcut. Simulates the student scan path from the police
+    /// phone — useful for recording demos without a second device. Redeems
+    /// the current token as if a student had scanned it, then the existing
+    /// `observeConsumption` listener handles drawer dismiss + navigation.
+    /// Currently hidden (no callback wired in the drawer).
     private func simulateStudentScan() {
         guard let payload = qrPayload else {
             qrErrorMessage = "Generate a code first, then simulate."

@@ -2,6 +2,10 @@
 //  QRCodeDrawerView.swift
 //  foundit
 //
+//  Bottom-sheet shown to the police when they tap "Show QR Code".
+//  Renders a QR image from the given string, shows a live countdown
+//  until the code expires, and exposes Copy / Share actions.
+//
 
 import SwiftUI
 import Combine
@@ -10,15 +14,20 @@ import CoreImage.CIFilterBuiltins
 // MARK: - QR Code Drawer (Bottom Sheet)
 
 struct QRCodeDrawerView: View {
+    /// The string to encode into the QR image (the `foundit-claim://…` URL).
     let itemCode: String
+    /// Item title shown in the drawer header.
     let itemTitle: String
+    /// When set, the drawer shows a live countdown and greys the QR out on expiry.
     let expiresAt: Date?
-    /// When provided, a demo button is rendered that invokes this closure.
+    /// Optional demo hook. When non-nil, a "Simulate Student Scan" button is shown.
     let onSimulateClaim: (() -> Void)?
     @Environment(\.dismiss) private var dismiss
+    /// Updated every second by `ticker` so the countdown label refreshes.
     @State private var now: Date = Date()
     @State private var isSimulating = false
 
+    /// Drives the countdown — emits every second while the drawer is visible.
     private let ticker = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     init(
@@ -33,15 +42,18 @@ struct QRCodeDrawerView: View {
         self.onSimulateClaim = onSimulateClaim
     }
 
+    /// Seconds left before `expiresAt`. Zero if unset or already past.
     private var remaining: TimeInterval {
         guard let expiresAt else { return 0 }
         return max(0, expiresAt.timeIntervalSince(now))
     }
 
+    /// True once the TTL has lapsed — used to grey the QR out.
     private var isExpired: Bool {
         expiresAt != nil && remaining <= 0
     }
 
+    /// Formatted "Expires in M:SS" text for the drawer header.
     private var countdownText: String {
         let total = Int(remaining)
         let minutes = total / 60
@@ -200,15 +212,18 @@ struct QRCodeDrawerView: View {
         .onAppear { now = Date() }
     }
 
+    /// Turns the given string into a UIImage of a QR code using Core Image.
+    /// Scaled up 10x so the code stays crisp when drawn at 220×220 points.
     private func generateQRCode(from string: String) -> UIImage? {
         guard !string.isEmpty else { return nil }
 
         let filter = CIFilter.qrCodeGenerator()
         filter.message = Data(string.utf8)
-        filter.correctionLevel = "M"
+        filter.correctionLevel = "M"   // medium error correction — good for screen-to-camera
 
         guard let outputImage = filter.outputImage else { return nil }
 
+        // Native CIImage output is tiny; scale up so pixels aren't blurry.
         let transform = CGAffineTransform(scaleX: 10, y: 10)
         let scaledImage = outputImage.transformed(by: transform)
 

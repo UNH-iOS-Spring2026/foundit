@@ -2,16 +2,23 @@
 //  ClaimTokenService.swift
 //  foundit
 //
+//  Talks to the `claimTokens` Firestore collection.
+//  Handles creating a token (police side), parsing the scanned QR,
+//  redeeming the token atomically (student side), and a real-time
+//  listener the police uses to know when the student has scanned.
+//
 
 import Foundation
 import FirebaseFirestore
 
+/// User-facing errors that can happen during the claim flow.
+/// The scanner result sheet shows `errorDescription` directly.
 enum ClaimTokenError: LocalizedError {
-    case invalidPayload
-    case tokenNotFound
-    case expired
-    case alreadyConsumed
-    case itemNotFound
+    case invalidPayload       // QR didn't parse as a foundit-claim URL
+    case tokenNotFound        // No matching document in Firestore
+    case expired              // Past expiresAt
+    case alreadyConsumed      // Someone already scanned this one
+    case itemNotFound         // The linked items/<id> doc is gone
 
     var errorDescription: String? {
         switch self {
@@ -28,6 +35,8 @@ class ClaimTokenService {
     private let db = Firestore.firestore()
     private let collection = "claimTokens"
 
+    /// Police side — writes a new claim token to Firestore so the scanner
+    /// can verify it later. The doc ID is the nonce.
     func createToken(
         postId: String,
         itemId: String,
@@ -49,6 +58,8 @@ class ClaimTokenService {
         try db.collection(collection).document(nonce).setData(from: token)
     }
 
+    /// Looks up a token by its nonce. Thrown `tokenNotFound` means the
+    /// scanner read a string that doesn't match any issued code.
     func fetchToken(nonce: String) async throws -> ClaimToken {
         let doc = try await db.collection(collection).document(nonce).getDocument()
         guard doc.exists, let token = try? doc.data(as: ClaimToken.self) else {

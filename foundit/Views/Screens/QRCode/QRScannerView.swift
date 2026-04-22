@@ -2,6 +2,10 @@
 //  QRScannerView.swift
 //  foundit
 //
+//  Full-screen camera scanner for the claim flow. Uses AVFoundation to
+//  read QR codes and presents a result sheet that verifies + redeems
+//  the scanned code against Firestore.
+//
 
 import SwiftUI
 import AVFoundation
@@ -9,7 +13,11 @@ import AVFoundation
 // MARK: - Scanner Screen
 
 struct QRScannerView: View {
+    /// When non-empty, the scanned token's postId must match this value.
+    /// Scoping the scanner to one post blocks scanning a code meant for a different item.
     let claimPostId: String
+    /// Called after a successful claim. The parent uses the chatId to push the
+    /// student into the chat thread as the shared confirmation surface.
     let onClaimed: (_ chatId: String?) -> Void
     @Environment(\.dismiss) private var dismiss
     @State private var scannedCode: String?
@@ -110,17 +118,24 @@ struct QRScannerView: View {
 
 // MARK: - Scan Result Sheet
 
+/// Three states the result sheet moves through:
+/// `verifying` on appear → `success` or `failure` once Firestore responds.
 enum QRRedemptionState {
     case verifying
     case success(at: Date, chatId: String?)
     case failure(message: String)
 }
 
+/// Sheet shown after the camera reads a QR. Runs verification on `.task`,
+/// then renders a confirmation UI or a specific error.
 struct QRResultSheet: View {
+    /// The raw string the scanner read from the QR.
     let code: String
-    /// When non-empty, the scanned token's postId must match this value.
+    /// When non-empty, the scanned token's postId must match this value —
+    /// rejects codes that belong to a different post.
     let expectedPostId: String
-    /// Called when the user taps Done on the success screen. Receives the chatId to navigate to, if any.
+    /// Called when the user taps Done/Open Chat on the success screen.
+    /// Receives the chatId to navigate to, if any.
     let onCompleted: (_ chatId: String?) -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -267,7 +282,15 @@ struct QRResultSheet: View {
         return f.string(from: date)
     }
 
+    /// The verification + redemption pipeline. Runs on sheet appear.
+    /// Each step can short-circuit with a specific error the UI shows directly.
+    ///   1. Parse the scanned string into a nonce.
+    ///   2. Look up the token in Firestore.
+    ///   3. Check the token belongs to the expected post (if scoped).
+    ///   4. Check it hasn't already been consumed or expired.
+    ///   5. Redeem it atomically — flips item to returned and closes the chat.
     private func verifyAndRedeem() async {
+        // 1. Parse
         guard let nonce = ClaimTokenService.parseNonce(from: code) else {
             state = .failure(message: ClaimTokenError.invalidPayload.errorDescription ?? "Invalid code.")
             return
@@ -275,14 +298,18 @@ struct QRResultSheet: View {
 
         let service = ClaimTokenService()
         do {
+            // 2. Fetch
             let token = try await service.fetchToken(nonce: nonce)
+            // 3. Post-id guard
             if !expectedPostId.isEmpty && token.postId != expectedPostId {
                 state = .failure(message: "This code is for a different item.")
                 return
             }
+            // 4. Freshness checks
             if token.isConsumed { throw ClaimTokenError.alreadyConsumed }
             if token.isExpired  { throw ClaimTokenError.expired }
 
+            // 5. Atomic redemption
             let chatId = try await service.redeemToken(
                 token,
                 consumedByUserId: AppConfig.currentUserId

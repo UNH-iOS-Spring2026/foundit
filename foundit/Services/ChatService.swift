@@ -61,8 +61,14 @@ class ChatService {
         try await batch.commit()
     }
 
-    /// Mark a chat as waiting for pickup, update (or create) the linked item, and post a system message.
-    /// Creates an `Item` doc if none exists so downstream claim-token flow has an `itemId` to reference.
+    /// Officer taps "Mark as Ready for Pickup" in chat. All three writes
+    /// below run in a single Firestore batch so they either all succeed
+    /// or all fail — avoids half-updated state.
+    ///   1. Flip the chat to `.waitingForPickup` + refresh the inbox preview.
+    ///   2. Update the matching `items` doc — or create one if none exists.
+    ///      Auto-provisioning guarantees the later QR claim flow always has
+    ///      an itemId to reference.
+    ///   3. Post a system message so both sides see the status change.
     func markReadyForPickup(chatId: String, postId: String) async throws {
         let batch = db.batch()
         let now = Timestamp()
@@ -71,7 +77,7 @@ class ChatService {
         let chatDoc = try await db.collection(collection).document(chatId).getDocument()
         let chat = try? chatDoc.data(as: Chat.self)
 
-        // Update chat status
+        // 1. Chat status + inbox preview
         let chatRef = db.collection(collection).document(chatId)
         batch.updateData([
             "status": Chat.Status.waitingForPickup.rawValue,
@@ -80,7 +86,7 @@ class ChatService {
             "updatedAt": now
         ], forDocument: chatRef)
 
-        // Update existing item, or provision a new one.
+        // 2. Update existing item, or provision a new one.
         let itemSnapshot = try await db.collection("items")
             .whereField("sourcePostId", isEqualTo: postId)
             .limit(to: 1)
@@ -90,6 +96,7 @@ class ChatService {
                 "status": ItemStatus.waitingForPickup.rawValue
             ], forDocument: itemDoc.reference)
         } else {
+            // No item record yet — create one now so the QR flow has something to point at.
             let itemRef = db.collection("items").document()
             let newItem = Item(
                 sourcePostId: postId,
