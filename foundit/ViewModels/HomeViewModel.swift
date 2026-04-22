@@ -7,6 +7,7 @@
 
 import Foundation
 import Combine
+import FirebaseAuth
  
 @MainActor
 final class HomeViewModel: ObservableObject {
@@ -19,18 +20,40 @@ final class HomeViewModel: ObservableObject {
     
     // MARK: Services
     private let postService = PostService()
+    
+    // MARK: Current User ID
+    private var currentUserId: String? {
+        Auth.auth().currentUser?.uid
+    }
+    
+    // MARK: Cache management
+    private var lastFetchTime: Date?
+    private let cacheValidityDuration: TimeInterval = 30 // Cache valid for 30 seconds
  
-    // MARK: filtered items
+    // MARK: filtered items (excluding current user's posts)
     var filteredItems: [Post] {
-        guard !searchText.trimmingCharacters(in: .whitespaces).isEmpty else {
-            return items
+        // First filter out current user's posts
+        let otherUsersPosts = items.filter { post in
+            guard let userId = currentUserId else { return true }
+            return post.createdBy != userId
         }
-        return items.filter {
+        
+        // Then apply search filter if search text is present
+        guard !searchText.trimmingCharacters(in: .whitespaces).isEmpty else {
+            return otherUsersPosts
+        }
+        
+        return otherUsersPosts.filter {
             $0.title.localizedCaseInsensitiveContains(searchText) ||
             $0.lastSeenLocationText.localizedCaseInsensitiveContains(searchText) ||
             $0.description.localizedCaseInsensitiveContains(searchText) ||
             $0.category.localizedCaseInsensitiveContains(searchText)
         }
+    }
+    
+    // MARK: Limited items for homepage (max 10)
+    var limitedItems: [Post] {
+        Array(filteredItems.prefix(10))
     }
  
     // MARK: Init
@@ -42,11 +65,20 @@ final class HomeViewModel: ObservableObject {
  
     // MARK: Load items from backend
     func loadItems() async {
+        // Check if cache is still valid
+        if let lastFetch = lastFetchTime,
+           Date().timeIntervalSince(lastFetch) < cacheValidityDuration,
+           !items.isEmpty {
+            // Use cached data
+            return
+        }
+        
         isLoading = true
         errorMessage = nil
         
         do {
             items = try await postService.fetchPosts()
+            lastFetchTime = Date()
         } catch {
             errorMessage = error.localizedDescription
             items = []
@@ -55,8 +87,9 @@ final class HomeViewModel: ObservableObject {
         isLoading = false
     }
     
-    // MARK: Refresh items
+    // MARK: Refresh items (force refresh, ignore cache)
     func refreshItems() async {
+        lastFetchTime = nil // Invalidate cache
         await loadItems()
     }
     

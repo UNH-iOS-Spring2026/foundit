@@ -32,11 +32,13 @@ struct ItemCardView: View {
                 Text(item.title)
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(.primary)
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
 
                 Text(item.formattedDate)
                     .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(.primary)
+                    .lineLimit(1)
 
                 HStack(spacing: 4) {
                     Image(systemName: "mappin.circle.fill")
@@ -45,7 +47,8 @@ struct ItemCardView: View {
                     Text(item.lastSeenLocationText)
                         .font(.system(size: 12))
                         .foregroundStyle(.secondary)
-                        .lineLimit(1)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
                 }
             }
             .padding(.horizontal, 10)
@@ -77,12 +80,12 @@ struct ItemCardView: View {
     @ViewBuilder
     private var itemImage: some View {
         if let urlString = item.primaryImageUrl, let url = URL(string: urlString) {
-            AsyncImage(url: url) { phase in
+            CachedAsyncImage(url: url) { phase in
                 switch phase {
                 case .success(let image):
                     image
                         .resizable()
-                        .scaledToFill()
+//                        .scaledToFill()
                         .frame(maxWidth: .infinity)
                         .frame(height: 130)
                         .clipped()

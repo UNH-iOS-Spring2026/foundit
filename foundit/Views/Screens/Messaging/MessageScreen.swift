@@ -22,7 +22,7 @@ struct MessageScreen: View {
                             HStack(spacing: 12) {
                                 // Thumbnail
                                 if let urlString = chat.itemImageUrl, let url = URL(string: urlString) {
-                                    AsyncImage(url: url) { phase in
+                                    CachedAsyncImage(url: url) { phase in
                                         switch phase {
                                         case .empty:
                                             ZStack {

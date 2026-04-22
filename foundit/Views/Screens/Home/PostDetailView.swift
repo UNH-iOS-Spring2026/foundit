@@ -8,6 +8,7 @@
 import SwiftUI
 import MapKit
 import FirebaseFirestore
+import FirebaseAuth
 
 struct PostDetailView: View {
     let item: Post
@@ -20,6 +21,39 @@ struct PostDetailView: View {
     
     private var resolvedChatViewModel: ChatViewModel {
         chatViewModel ?? fallbackChatViewModel
+    }
+    
+    // Check if current user is the post creator
+    private var isOwnPost: Bool {
+        guard let currentUserId = Auth.auth().currentUser?.uid else {
+            return false
+        }
+        return item.createdBy == currentUserId
+    }
+    
+    // Get reporter name from reporterInfo if available, otherwise use fetched name
+    private var reporterName: String {
+        if let reporterInfo = item.reporterInfo {
+            return reporterInfo.name
+        }
+        return viewModel.reporterName
+    }
+    
+    // Open location in Apple Maps with directions
+    private func openInMaps() {
+        let coordinate = CLLocationCoordinate2D(
+            latitude: item.coordinate.latitude,
+            longitude: item.coordinate.longitude
+        )
+        
+        let placemark = MKPlacemark(coordinate: coordinate)
+        let mapItem = MKMapItem(placemark: placemark)
+        mapItem.name = item.lastSeenLocationText.isEmpty ? item.title : item.lastSeenLocationText
+        
+        // Open Maps with directions option
+        mapItem.openInMaps(launchOptions: [
+            MKLaunchOptionsDirectionsModeKey: MKLaunchOptionsDirectionsModeWalking
+        ])
     }
     
     var body: some View {
@@ -84,7 +118,7 @@ struct PostDetailView: View {
                                     .foregroundStyle(Color(.systemGray))
                             )
 
-                        Text(viewModel.reporterName)
+                        Text(reporterName)
                             .font(.system(size: 15))
                             .foregroundStyle(.primary)
                     }
@@ -135,7 +169,14 @@ struct PostDetailView: View {
                     .frame(maxWidth: .infinity)
                     .frame(height: 220)
                     .clipShape(RoundedRectangle(cornerRadius: 14))
-                    .disabled(true)   // non-interactive, tap to open Maps if needed
+                    .disabled(true)
+                    .onTapGesture {
+                        openInMaps()
+                    }
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14)
+                            .strokeBorder(Color(.systemGray5), lineWidth: 1)
+                    )
                     
                     HStack(spacing: 6) {
                         Image(systemName: "mappin.circle.fill")
@@ -144,63 +185,81 @@ struct PostDetailView: View {
                         Text(item.lastSeenLocationText)
                             .font(.system(size: 14, weight: .medium))
                             .foregroundStyle(.primary)
+                        
+                        Spacer()
+                        
+                        // "Open in Maps" button
+                        Button {
+                            openInMaps()
+                        } label: {
+                            HStack(spacing: 4) {
+                                Text("Get Directions")
+                                    .font(.system(size: 13, weight: .medium))
+                                Image(systemName: "arrow.up.right")
+                                    .font(.system(size: 11, weight: .semibold))
+                            }
+                            .foregroundStyle(Color(red: 0.55, green: 0.60, blue: 0.85))
+                        }
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 16)
                 .padding(.top, 20)
                 
-                Button {
-                    guard !isCreatingChat else { return }
-                    isCreatingChat = true
-                    Task {
-                        let chatService = ChatService()
-                        let userId = AppConfig.placeholderUserId
-                        do {
-                            if let existing = try await chatService.fetchChat(forPostId: item.id ?? "", userId: userId) {
-                                activeChatId = existing.id
-                            } else {
-                                let now = Timestamp()
-                                let chat = Chat(
-                                    postId: item.id ?? "",
-                                    userId: userId,
-                                    policeId: "campus-police-001",
-                                    itemTitle: item.title,
-                                    itemImageUrl: item.primaryImageUrl,
-                                    lastMessage: "",
-                                    lastMessageAt: now,
-                                    status: .active,
-                                    createdAt: now,
-                                    updatedAt: now
-                                )
-                                let chatId = try await chatService.createChat(chat)
-                                activeChatId = chatId
+                // Only show "Take Action" button if this is NOT the current user's post
+                if !isOwnPost {
+                    Button {
+                        guard !isCreatingChat else { return }
+                        isCreatingChat = true
+                        Task {
+                            let chatService = ChatService()
+                            let userId = AppConfig.placeholderUserId
+                            do {
+                                if let existing = try await chatService.fetchChat(forPostId: item.id ?? "", userId: userId) {
+                                    activeChatId = existing.id
+                                } else {
+                                    let now = Timestamp()
+                                    let chat = Chat(
+                                        postId: item.id ?? "",
+                                        userId: userId,
+                                        policeId: "campus-police-001",
+                                        itemTitle: item.title,
+                                        itemImageUrl: item.primaryImageUrl,
+                                        lastMessage: "",
+                                        lastMessageAt: now,
+                                        status: .active,
+                                        createdAt: now,
+                                        updatedAt: now
+                                    )
+                                    let chatId = try await chatService.createChat(chat)
+                                    activeChatId = chatId
+                                }
+                            } catch {
+                                print("[TakeAction] Error: \(error)")
                             }
-                        } catch {
-                            print("[TakeAction] Error: \(error)")
+                            isCreatingChat = false
                         }
-                        isCreatingChat = false
+                    } label: {
+                        if isCreatingChat {
+                            ProgressView()
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 16)
+                                .background(Color(red: 0.55, green: 0.60, blue: 0.85))
+                                .clipShape(RoundedRectangle(cornerRadius: 14))
+                        } else {
+                            Text("Take Action")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundStyle(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 16)
+                                .background(Color(red: 0.55, green: 0.60, blue: 0.85))
+                                .clipShape(RoundedRectangle(cornerRadius: 14))
+                        }
                     }
-                } label: {
-                    if isCreatingChat {
-                        ProgressView()
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 16)
-                            .background(Color(red: 0.55, green: 0.60, blue: 0.85))
-                            .clipShape(RoundedRectangle(cornerRadius: 14))
-                    } else {
-                        Text("Take Action")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 16)
-                            .background(Color(red: 0.55, green: 0.60, blue: 0.85))
-                            .clipShape(RoundedRectangle(cornerRadius: 14))
-                    }
+                    .disabled(isCreatingChat)
+                    .padding(.horizontal, 16)
+                    .padding(.top, 24)
                 }
-                .disabled(isCreatingChat)
-                .padding(.horizontal, 16)
-                .padding(.top, 24)
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Similar Items")
                         .font(.system(size: 15, weight: .semibold))
@@ -243,7 +302,10 @@ struct PostDetailView: View {
                 .environmentObject(resolvedChatViewModel)
         }
         .task {
-            await viewModel.fetchReporterName(userId: item.createdBy)
+            // Only fetch reporter name if not already in reporterInfo
+            if item.reporterInfo == nil {
+                await viewModel.fetchReporterName(userId: item.createdBy)
+            }
             similarItems = await viewModel.fetchSimilarPosts(to: item, limit: 6)
         }
     }

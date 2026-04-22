@@ -3,8 +3,8 @@ import Combine
 
 enum AppTab: Hashable {
     case home
-    case report
     case chat
+    case myPosts
     case profile
 }
 

@@ -25,7 +25,7 @@ enum PostStatus: String, Codable {
 }
 
 // MARK: - Reporter Info
-struct Reporter: Codable {
+struct Reporter: Codable, Hashable {
     var name: String
     var avatarUrl: String?  // URL to avatar image in Firebase Storage
     
@@ -36,7 +36,7 @@ struct Reporter: Codable {
 }
 
 // MARK: - Main Post Model
-struct Post: Identifiable, Codable {
+struct Post: Identifiable, Codable, Hashable {
     @DocumentID var id: String?
     var type: PostType
     var title: String
