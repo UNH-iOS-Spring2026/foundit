@@ -18,6 +18,10 @@ class AppDelegate: NSObject, UIApplicationDelegate {
     ) -> Bool {
         FirebaseApp.configure()
         
+        // Set notification delegates
+        UNUserNotificationCenter.current().delegate = self
+        Messaging.messaging().delegate = self
+        
         // Request notification permissions
         requestNotificationPermissions(application: application)
         
@@ -73,3 +77,46 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         print("Failed to register for remote notifications: \(error.localizedDescription)")
     }
 }
+// MARK: - UNUserNotificationCenterDelegate
+
+extension AppDelegate: UNUserNotificationCenterDelegate {
+    // Called when a notification is delivered to the app while it's in the foreground
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        let userInfo = notification.request.content.userInfo
+        print("Notification received in foreground: \(userInfo)")
+        
+        // Show the notification even when app is in foreground
+        completionHandler([.banner, .sound, .badge])
+    }
+    
+    // Called when user taps on a notification
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
+        let userInfo = response.notification.request.content.userInfo
+        print("User tapped notification: \(userInfo)")
+        
+        // Handle the notification tap here
+        
+        completionHandler()
+    }
+}
+
+// MARK: - MessagingDelegate
+
+extension AppDelegate: MessagingDelegate {
+    // Called when FCM registration token is received or refreshed
+    func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
+        guard let fcmToken = fcmToken else { return }
+        
+        print("FCM Token: \(fcmToken)")
+        
+    }
+}
+
