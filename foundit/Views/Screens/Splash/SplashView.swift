@@ -7,7 +7,7 @@ import SwiftUI
 
 struct SplashView: View {
 	@State private var goToOnboarding = false
-	@EnvironmentObject var authVM: AuthViewModel
+	@AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = false
 
 	var body: some View {
 		ZStack {
@@ -32,6 +32,7 @@ struct SplashView: View {
 				Spacer()
 
 				Button {
+					hasSeenOnboarding = true
 					goToOnboarding = true
 				} label: {
 					Text("GET STARTED")
@@ -46,7 +47,7 @@ struct SplashView: View {
 				.padding(.bottom, 60)
 
 				NavigationLink(
-					destination: OnboardingView().environmentObject(authVM),
+					destination: OnboardingView(),
 					isActive: $goToOnboarding
 				) {
 					EmptyView()
@@ -61,6 +62,6 @@ struct SplashView: View {
 #Preview {
 	NavigationStack {
 		SplashView()
-			.environmentObject(AuthViewModel())
 	}
+	.environmentObject(AuthViewModel())
 }
