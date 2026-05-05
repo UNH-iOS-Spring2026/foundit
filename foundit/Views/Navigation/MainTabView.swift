@@ -11,6 +11,7 @@ struct MainTabView: View {
     @StateObject private var postViewModel = PostViewModel()
     @StateObject private var chatViewModel = ChatViewModel()
     @StateObject private var tabRouter = TabRouter()
+    @StateObject private var notificationViewModel = NotificationViewModel()
     @State private var searchText: String = ""
 
     var body: some View {
@@ -54,10 +55,16 @@ struct MainTabView: View {
         .environmentObject(postViewModel)
         .environmentObject(chatViewModel)
         .environmentObject(tabRouter)
+        .environmentObject(notificationViewModel)
+        .onReceive(NotificationCenter.default.publisher(for: .notificationBannerTapped)) { event in
+            if let postId = event.userInfo?["relatedPostId"] as? String {
+                tabRouter.pendingPostId = postId
+                tabRouter.selectedTab = .home
+            }
+        }
     }
 }
 
 #Preview {
     MainTabView()
-        
 }

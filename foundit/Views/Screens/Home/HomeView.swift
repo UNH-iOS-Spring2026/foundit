@@ -13,6 +13,7 @@ struct HomeView: View {
     @EnvironmentObject var postViewModel: PostViewModel
     @EnvironmentObject var chatViewModel: ChatViewModel
     @EnvironmentObject var authVM: AuthViewModel
+    @EnvironmentObject var tabRouter: TabRouter
     @Binding var searchText: String
     @State private var navigateToReport: Bool = false
     @State private var showNotifications: Bool = false
@@ -21,6 +22,7 @@ struct HomeView: View {
     @State private var postToEdit: Post? = nil
     @State private var navigateToEdit: Bool = false
     @State private var shouldRefreshAfterPost: Bool = false
+    @State private var notificationPost: Post? = nil
 
     
     private let columns = [
@@ -158,10 +160,22 @@ struct HomeView: View {
         .navigationDestination(isPresented: $showNotifications) {
             NotificationView()
         }
+        .navigationDestination(item: $notificationPost) { post in
+            PostDetailView(item: post, chatViewModel: chatViewModel)
+        }
         .navigationDestination(isPresented: $navigateToEdit) {
             if let post = postToEdit {
                 PostItemView(postToEdit: post)
                     .environmentObject(postViewModel)
+            }
+        }
+        .onChange(of: tabRouter.pendingPostId) { _, postId in
+            guard let postId, !postId.isEmpty else { return }
+            tabRouter.pendingPostId = nil
+            Task {
+                if let post = try? await postViewModel.fetchPostById(id: postId) {
+                    notificationPost = post
+                }
             }
         }
         .onChange(of: searchText) { _, newValue in

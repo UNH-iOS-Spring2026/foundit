@@ -24,7 +24,10 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         
         // Request notification permissions
         requestNotificationPermissions(application: application)
-        
+
+        // Set up local notification manager as the UNUserNotificationCenter delegate
+        LocalNotificationManager.shared.setup()
+
         return true
     }
     

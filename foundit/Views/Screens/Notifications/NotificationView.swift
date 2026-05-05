@@ -7,7 +7,7 @@ import SwiftUI
 
 struct NotificationView: View {
     @Environment(\.dismiss) private var dismiss
-    @StateObject private var viewModel = NotificationViewModel()
+    @EnvironmentObject private var viewModel: NotificationViewModel
     @StateObject private var postViewModel = PostViewModel()
     @State private var selectedPost: Post? = nil
     @State private var showingErrorAlert = false
@@ -276,4 +276,5 @@ struct NotificationRowView: View {
 // MARK: - Preview
 #Preview {
     NotificationView()
+        .environmentObject(NotificationViewModel())
 }

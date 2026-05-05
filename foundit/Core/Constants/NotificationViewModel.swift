@@ -5,6 +5,7 @@
 
 import Foundation
 import Combine
+import FirebaseFirestore
 
 @MainActor
 class NotificationViewModel: ObservableObject {
@@ -13,109 +14,161 @@ class NotificationViewModel: ObservableObject {
     @Published var unreadCount: Int = 0
     @Published var isLoading: Bool = false
     @Published var errorMessage: String?
-    
+
     private let notificationService = NotificationService()
     private let currentUserId: String
-    
+    private let db = Firestore.firestore()
+    private var listenerRegistration: ListenerRegistration?
+    // Records the moment the listener was registered; only docs timestamped after this get a banner
+    private var listenerStartTime: Date = .distantFuture
+
     init(userId: String = AppConfig.currentUserId) {
         self.currentUserId = userId
+        print("[NotificationViewModel] init — userId: '\(userId)'")
+        startListening()
     }
-    
+
+    deinit {
+        listenerRegistration?.remove()
+    }
+
     // MARK: - Fetch Notifications
     func fetchNotifications() async {
         guard !currentUserId.isEmpty else { return }
-        
+
         isLoading = true
         errorMessage = nil
-        
+
         do {
             notifications = try await notificationService.fetchNotifications(for: currentUserId)
             notificationSections = AppNotification.groupNotifications(notifications)
-            
-            // Update unread count
             unreadCount = notifications.filter { !$0.isRead }.count
-            
         } catch {
             errorMessage = "Failed to load notifications: \(error.localizedDescription)"
-            print("Error fetching notifications: \(error)")
+            print("[NotificationViewModel] fetchNotifications error: \(error)")
         }
-        
+
         isLoading = false
     }
-    
+
     // MARK: - Mark as Read
     func markAsRead(_ notification: AppNotification) async {
         guard let notificationId = notification.id, !notification.isRead else { return }
-        
+
         do {
             try await notificationService.markAsRead(notificationId: notificationId)
-            
-            // Update local state
+
             if let index = notifications.firstIndex(where: { $0.id == notificationId }) {
                 notifications[index].isRead = true
                 unreadCount = max(0, unreadCount - 1)
             }
-            
-            // Refresh sections
             notificationSections = AppNotification.groupNotifications(notifications)
-            
         } catch {
-            print("Error marking notification as read: \(error)")
+            print("[NotificationViewModel] markAsRead error: \(error)")
         }
     }
-    
+
     // MARK: - Mark All as Read
     func markAllAsRead() async {
         guard !currentUserId.isEmpty else { return }
-        
+
         do {
             try await notificationService.markAllAsRead(for: currentUserId)
-            
-            // Update local state
+
             for index in notifications.indices {
                 notifications[index].isRead = true
             }
             unreadCount = 0
-            
-            // Refresh sections
             notificationSections = AppNotification.groupNotifications(notifications)
-            
         } catch {
             errorMessage = "Failed to mark all as read: \(error.localizedDescription)"
-            print("Error marking all as read: \(error)")
+            print("[NotificationViewModel] markAllAsRead error: \(error)")
         }
     }
-    
+
     // MARK: - Delete Notification
     func deleteNotification(_ notification: AppNotification) async {
         guard let notificationId = notification.id else { return }
-        
+
         do {
             try await notificationService.deleteNotification(id: notificationId)
-            
-            // Update local state
+
             notifications.removeAll { $0.id == notificationId }
             if !notification.isRead {
                 unreadCount = max(0, unreadCount - 1)
             }
-            
-            // Refresh sections
             notificationSections = AppNotification.groupNotifications(notifications)
-            
         } catch {
             errorMessage = "Failed to delete notification: \(error.localizedDescription)"
-            print("Error deleting notification: \(error)")
+            print("[NotificationViewModel] deleteNotification error: \(error)")
         }
     }
-    
+
     // MARK: - Refresh Unread Count
     func refreshUnreadCount() async {
         guard !currentUserId.isEmpty else { return }
-        
+
         do {
             unreadCount = try await notificationService.getUnreadCount(for: currentUserId)
         } catch {
-            print("Error refreshing unread count: \(error)")
+            print("[NotificationViewModel] refreshUnreadCount error: \(error)")
         }
+    }
+
+    // MARK: - Real-time Listener
+    private func startListening() {
+        guard !currentUserId.isEmpty else {
+            print("[NotificationViewModel] startListening SKIPPED — userId is empty")
+            return
+        }
+
+        listenerStartTime = Date()
+        print("[NotificationViewModel] startListening — userId: '\(currentUserId)', startTime: \(listenerStartTime)")
+
+        listenerRegistration = db.collection("notifications")
+            .whereField("recipientId", isEqualTo: currentUserId)
+            .addSnapshotListener { [weak self] snapshot, error in
+                guard let self = self else { return }
+
+                if let error = error {
+                    print("[NotificationViewModel] listener error: \(error)")
+                    return
+                }
+
+                guard let snapshot = snapshot else { return }
+
+                print("[NotificationViewModel] snapshot received — \(snapshot.documentChanges.count) change(s)")
+
+                for change in snapshot.documentChanges {
+                    print("[NotificationViewModel]   change type: \(change.type.rawValue), docId: \(change.document.documentID)")
+
+                    guard change.type == .added else { continue }
+
+                    var notification: AppNotification
+                    do {
+                        notification = try change.document.data(as: AppNotification.self)
+                    } catch {
+                        print("[NotificationViewModel]   failed to decode doc \(change.document.documentID): \(error)")
+                        print("[NotificationViewModel]   raw data: \(change.document.data())")
+                        continue
+                    }
+
+                    if notification.id == nil || notification.id?.isEmpty == true {
+                        notification.id = change.document.documentID
+                    }
+
+                    let docTime = notification.timestamp.dateValue()
+                    print("[NotificationViewModel]   doc timestamp: \(docTime), listenerStart: \(self.listenerStartTime), isNew: \(docTime > self.listenerStartTime)")
+
+                    // Only banner docs that were written after this listener registered
+                    guard docTime > self.listenerStartTime else {
+                        print("[NotificationViewModel]   skipping — pre-existing doc")
+                        continue
+                    }
+
+                    print("[NotificationViewModel]   delivering banner for: '\(notification.title)'")
+                    LocalNotificationManager.shared.deliver(from: notification)
+                }
+            }
     }
 }
