@@ -19,9 +19,10 @@ struct ItemCardView: View {
         VStack(alignment: .leading, spacing: 0) {
 
             ZStack(alignment: .topTrailing) {
-                itemImage
+                Color(.systemGray6)
                     .frame(maxWidth: .infinity)
                     .frame(height: 130)
+                    .overlay(itemImage)
                     .clipped()
 
                 StatusBadgeView(type: item.type)
@@ -86,15 +87,10 @@ struct ItemCardView: View {
                     image
                         .resizable()
                         .scaledToFill()
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 130)
-                        .clipped()
                 case .failure:
                     placeholderImage
                 default:
-                    ProgressView()
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .background(Color(.systemGray6))
+                    Color(.systemGray6)
                 }
             }
         } else {
@@ -106,9 +102,6 @@ struct ItemCardView: View {
         Image("default_item_image")
             .resizable()
             .scaledToFill()
-            .frame(maxWidth: .infinity)
-            .frame(height: 130)
-            .clipped()
     }
 }
 
