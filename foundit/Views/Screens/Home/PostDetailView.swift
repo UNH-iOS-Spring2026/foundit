@@ -13,6 +13,7 @@ import FirebaseAuth
 struct PostDetailView: View {
     let item: Post
     var chatViewModel: ChatViewModel?
+    @Environment(\.dismiss) private var dismiss
     @EnvironmentObject var authVM: AuthViewModel
     @StateObject private var viewModel = PostViewModel()
     @StateObject private var fallbackChatViewModel = ChatViewModel()
@@ -491,6 +492,21 @@ struct PostDetailView: View {
         }
         .navigationTitle("Report Details")
         .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(true)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button {
+                    dismiss()
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "chevron.left")
+                            .fontWeight(.medium)
+                        Text("Back")
+                    }
+                    .foregroundStyle(Color(red: 0.55, green: 0.60, blue: 0.85))
+                }
+            }
+        }
         .background(Color(.systemGroupedBackground))
         .navigationDestination(item: $activeChatId) { chatId in
             ChatDetailView(
