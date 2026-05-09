@@ -158,14 +158,25 @@ class NotificationViewModel: ObservableObject {
                     }
 
                     let docTime = notification.timestamp.dateValue()
-                    print("[NotificationViewModel]   doc timestamp: \(docTime), listenerStart: \(self.listenerStartTime), isNew: \(docTime > self.listenerStartTime)")
+                    let isNew = docTime > self.listenerStartTime
+                    print("[NotificationViewModel]   doc timestamp: \(docTime), listenerStart: \(self.listenerStartTime), isNew: \(isNew)")
 
-                    // Only banner docs that were written after this listener registered
-                    guard docTime > self.listenerStartTime else {
+                    guard isNew else {
                         print("[NotificationViewModel]   skipping — pre-existing doc")
                         continue
                     }
 
+                    // Always update in-app state so the badge and list stay current
+                    // regardless of whether the OS banner toggle is on or off
+                    if !self.notifications.contains(where: { $0.id == notification.id }) {
+                        self.notifications.insert(notification, at: 0)
+                        if !notification.isRead {
+                            self.unreadCount += 1
+                        }
+                        self.notificationSections = AppNotification.groupNotifications(self.notifications)
+                    }
+
+                    // Fire the OS banner only if the user has it enabled
                     print("[NotificationViewModel]   delivering banner for: '\(notification.title)'")
                     LocalNotificationManager.shared.deliver(from: notification)
                 }
