@@ -14,6 +14,7 @@ import UIKit
 @MainActor
 final class AuthViewModel: ObservableObject {
 	@Published var isAuthenticated = false
+	@Published var isAdmin = false
 	@Published var isLoading = false
 	@Published var errorMessage = ""
 	@Published var resetMessage = ""
@@ -54,6 +55,7 @@ final class AuthViewModel: ObservableObject {
 			isAuthenticated = true
 			currentUserEmail = user.email ?? ""
 			currentDisplayName = user.displayName ?? ""
+			Task { await self.fetchAdminStatus(uid: user.uid) }
 		} else {
 			isAuthenticated = false
 			currentUserEmail = ""
@@ -66,7 +68,23 @@ final class AuthViewModel: ObservableObject {
 				self.isAuthenticated = (user != nil)
 				self.currentUserEmail = user?.email ?? ""
 				self.currentDisplayName = user?.displayName ?? ""
+				if let uid = user?.uid {
+					await self.fetchAdminStatus(uid: uid)
+				} else {
+					self.isAdmin = false
+				}
 			}
+		}
+	}
+
+	/// Reads the isAdmin field from the user's Firestore document.
+	func fetchAdminStatus(uid: String) async {
+		do {
+			let doc = try await db.collection("users").document(uid).getDocument()
+			isAdmin = doc.data()?["isAdmin"] as? Bool ?? false
+		} catch {
+			print("[fetchAdminStatus] \(error)")
+			isAdmin = false
 		}
 	}
 
@@ -261,6 +279,7 @@ final class AuthViewModel: ObservableObject {
 			try Auth.auth().signOut()
 			GIDSignIn.sharedInstance.signOut()
 			currentUserEmail = ""
+			isAdmin = false
 			isAuthenticated = false
 		} catch {
 			errorMessage = error.localizedDescription

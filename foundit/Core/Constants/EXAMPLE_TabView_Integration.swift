@@ -26,7 +26,7 @@ struct ExampleMainTabView: View {
                 .tabItem {
                     Label("Notifications", systemImage: "bell")
                 }
-                .badge(notificationViewModel.unreadCount) // Show unread count as badge
+                .badge(notificationViewModel.unreadCount > 0 ? notificationViewModel.unreadCount : 0) // Only show badge when there are unread notifications
             
             // Other tabs...
         }

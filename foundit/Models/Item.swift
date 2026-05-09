@@ -8,6 +8,7 @@ import FirebaseFirestore
 
 enum ItemStatus: String, Codable {
     case withAdmin = "with_admin"
+    case waitingForPickup = "waiting_for_pickup"
     case returned
 }
 
@@ -20,6 +21,10 @@ struct Item: Identifiable, Codable {
     var returnedAt: Timestamp?
     var foundBy: String
     var collectedBy: String
+    /// UID of the student who scanned the QR to claim the item. Set at return time.
+    var returnedByUserId: String?
+    /// Optional location where the return was completed. Set at return time.
+    var returnLocation: GeoPoint?
 }
 
 struct Location: Identifiable, Codable {

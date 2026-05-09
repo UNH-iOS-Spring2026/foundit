@@ -1,7 +1,6 @@
 //
 //  ForgotPasswordView.swift
 //  foundit
-//
 //	Source of inspiration for UI: ChatGPT (OpenAI)
 //  Created by Ashish Khadka on 3/18/26.
 //
