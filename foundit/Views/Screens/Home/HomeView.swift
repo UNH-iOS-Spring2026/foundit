@@ -37,7 +37,7 @@ struct HomeView: View {
             HomeHeaderView(
                 userName: authVM.currentUser?.displayName ?? "User",
                 userEmail: authVM.currentUser?.email ?? "",
-                hasNotification: notificationViewModel.unreadCount > 0,
+                unreadCount: notificationViewModel.unreadCount,
                 onPost: {
                     navigateToReport = true
                 },
