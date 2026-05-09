@@ -155,8 +155,7 @@ struct NotificationRowView: View {
             HStack(alignment: .top, spacing: 12) {
                 // Thumbnail Image
                 if let imageUrl = notification.imageUrl {
-                    // Try to load from Firebase Storage URL or local asset
-                    AsyncImage(url: URL(string: imageUrl)) { phase in
+                    PhaseCachedAsyncImage(url: URL(string: imageUrl)) { phase in
                         switch phase {
                         case .success(let image):
                             image
@@ -164,8 +163,7 @@ struct NotificationRowView: View {
                                 .scaledToFill()
                                 .frame(width: 70, height: 70)
                                 .clipShape(RoundedRectangle(cornerRadius: 12))
-                        case .failure(_):
-                            // Fallback to local asset if URL fails
+                        case .failure:
                             Image(imageUrl)
                                 .resizable()
                                 .scaledToFill()
