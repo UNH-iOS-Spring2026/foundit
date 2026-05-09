@@ -8,6 +8,11 @@ import UserNotifications
 
 final class LocalNotificationManager: NSObject, UNUserNotificationCenterDelegate {
     static let shared = LocalNotificationManager()
+    static let enabledPreferenceKey = "localNotificationsEnabled"
+
+    var isEnabled: Bool {
+        UserDefaults.standard.object(forKey: Self.enabledPreferenceKey) as? Bool ?? true
+    }
 
     private override init() {
         super.init()
@@ -26,6 +31,10 @@ final class LocalNotificationManager: NSObject, UNUserNotificationCenterDelegate
 
     // Post a banner for the given AppNotification
     func deliver(from notification: AppNotification) {
+        guard isEnabled else {
+            print("[LocalNotificationManager] suppressed — notifications disabled by user")
+            return
+        }
         print("[LocalNotificationManager] deliver called — title: '\(notification.title)'")
         let content = UNMutableNotificationContent()
         content.title = notification.title
