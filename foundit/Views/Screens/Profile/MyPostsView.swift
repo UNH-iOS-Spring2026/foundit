@@ -394,13 +394,11 @@ private struct MyPostCardView: View {
     }
     
     private var placeholderImage: some View {
-        ZStack {
-            Color(.systemGray5)
-            Image(systemName: "photo")
-                .font(.system(size: 36))
-                .foregroundStyle(Color(.systemGray2))
-        }
-        .frame(width: 110, height: 110)
+        Image("default_item_image")
+            .resizable()
+            .scaledToFill()
+            .frame(width: 110, height: 110)
+            .clipped()
     }
 }
 
