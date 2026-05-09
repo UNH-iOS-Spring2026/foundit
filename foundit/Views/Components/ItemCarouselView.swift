@@ -16,15 +16,13 @@ struct ItemImageCarouselView: View {
 
     var body: some View {
         if images.isEmpty {
-            ZStack {
-                Color(.systemGray5)
-                Image(systemName: "photo")
-                    .font(.system(size: 40))
-                    .foregroundStyle(Color(.systemGray3))
-            }
-            .frame(maxWidth: .infinity)
-            .frame(height: 260)
-            .clipShape(RoundedRectangle(cornerRadius: 16))
+            Image("default_item_image")
+                .resizable()
+                .scaledToFill()
+                .frame(maxWidth: .infinity)
+                .frame(height: 260)
+                .clipped()
+                .clipShape(RoundedRectangle(cornerRadius: 16))
         } else {
             carouselContent
         }
@@ -110,14 +108,12 @@ struct ItemImageCarouselView: View {
     }
 
     private var imagePlaceholder: some View {
-        ZStack {
-            Color(.systemGray5)
-            Image(systemName: "photo")
-                .font(.system(size: 40))
-                .foregroundStyle(Color(.systemGray3))
-        }
-        .frame(maxWidth: .infinity)
-        .frame(height: 260)
+        Image("default_item_image")
+            .resizable()
+            .scaledToFill()
+            .frame(maxWidth: .infinity)
+            .frame(height: 260)
+            .clipped()
     }
 }
 
