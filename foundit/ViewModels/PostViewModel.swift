@@ -74,14 +74,17 @@ class PostViewModel: ObservableObject {
         do {
             let postId = UUID().uuidString
             var photoUrls: [String] = []
-            
-            // Try to upload images, but don't fail if it doesn't work
+
             if !photoData.isEmpty {
+                print("[PostViewModel] Uploading \(photoData.count) image(s) for postId: \(postId)")
                 do {
                     photoUrls = try await storageService.uploadImages(dataArray: photoData, postId: postId)
+                    print("[PostViewModel] Upload succeeded — \(photoUrls.count) URL(s): \(photoUrls)")
                 } catch {
-                    // Continue without images instead of failing
-                    errorMessage = "Post created, but image upload failed"
+                    print("[PostViewModel] Upload FAILED: \(error)")
+                    errorMessage = error.localizedDescription
+                    isLoading = false
+                    return
                 }
             }
 

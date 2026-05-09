@@ -26,8 +26,8 @@ struct PostItemView: View {
     @State private var selectedCategory: String = "Books"
     @State private var selectedDate: Date = Date()
     @State private var showDatePicker: Bool = false
-    @State private var selectedImage: UIImage? = nil
-    @State private var photoPickerItem: PhotosPickerItem? = nil
+    @State private var selectedImages: [UIImage] = []
+    @State private var photoPickerItems: [PhotosPickerItem] = []
     @State private var title: String = ""
     @State private var descriptionText: String = ""
     @State private var mobileNumber: String = ""
@@ -136,57 +136,118 @@ struct PostItemView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 14))
                 .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
                 
-                FormSectionLabel(title: "Upload Image")
-                
-                PhotosPicker(
-                    selection: $photoPickerItem,
-                    matching: .images
-                ) {
-                    ZStack {
-                        if let image = selectedImage {
-                            // ── Selected image preview ─────────────────
-                            ZStack(alignment: .topTrailing) {
-                                Image(uiImage: image)
-                                    .resizable()
-                                    .scaledToFill()
-                                    .frame(maxWidth: .infinity)
-                                    .frame(height: 200)
-                                    .clipShape(RoundedRectangle(cornerRadius: 14))
-                                
-                                // Tap to change hint
-                                Text("Tap to change")
-                                    .font(.system(size: 12, weight: .medium))
-                                    .foregroundStyle(.white)
-                                    .padding(.horizontal, 10)
-                                    .padding(.vertical, 5)
-                                    .background(Color.black.opacity(0.45))
-                                    .clipShape(Capsule())
-                                    .padding(10)
-                            }
-                        } else {
-                            // Empty upload placeholder
-                            VStack(spacing: 10) {
-                                Image(systemName: "photo.badge.plus")
-                                    .font(.system(size: 32))
-                                    .foregroundStyle(Color(.systemGray3))
-                                Text("Upload Image")
-                                    .font(.system(size: 16, weight: .semibold))
-                                    .foregroundStyle(Color(.systemGray2))
-                            }
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 200)
-                            .background(Color(.systemBackground))
-                            .clipShape(RoundedRectangle(cornerRadius: 14))
-                            .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
+                FormSectionLabel(title: "Upload Images (up to \(maxImages))")
+
+                Group {
+                if totalImageCount == 0 {
+                    // ── Empty state: full-width add button ───────────
+                    PhotosPicker(
+                        selection: $photoPickerItems,
+                        maxSelectionCount: maxImages,
+                        matching: .images
+                    ) {
+                        VStack(spacing: 10) {
+                            Image(systemName: "photo.badge.plus")
+                                .font(.system(size: 32))
+                                .foregroundStyle(Color(.systemGray3))
+                            Text("Upload Images")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundStyle(Color(.systemGray2))
                         }
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 160)
+                        .background(Color(.systemBackground))
+                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                        .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
+                    }
+                } else {
+                    // ── Thumbnail strip ──────────────────────────────
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 12) {
+                            // Existing URLs (edit mode)
+                            ForEach(Array(existingPhotoUrls.enumerated()), id: \.offset) { index, urlString in
+                                ZStack(alignment: .topTrailing) {
+                                    PhaseCachedAsyncImage(url: URL(string: urlString)) { phase in
+                                        switch phase {
+                                        case .success(let image):
+                                            image.resizable().scaledToFill()
+                                        default:
+                                            Color(.systemGray5)
+                                        }
+                                    }
+                                    .frame(width: 90, height: 90)
+                                    .clipShape(RoundedRectangle(cornerRadius: 10))
+
+                                    Button {
+                                        existingPhotoUrls.remove(at: index)
+                                    } label: {
+                                        Image(systemName: "xmark.circle.fill")
+                                            .font(.system(size: 20))
+                                            .foregroundStyle(.white)
+                                            .background(Color.black.opacity(0.5), in: Circle())
+                                    }
+                                    .offset(x: 6, y: -6)
+                                }
+                            }
+
+                            // Newly selected local images
+                            ForEach(Array(selectedImages.enumerated()), id: \.offset) { index, img in
+                                ZStack(alignment: .topTrailing) {
+                                    Image(uiImage: img)
+                                        .resizable()
+                                        .scaledToFill()
+                                        .frame(width: 90, height: 90)
+                                        .clipShape(RoundedRectangle(cornerRadius: 10))
+
+                                    Button {
+                                        selectedImages.remove(at: index)
+                                    } label: {
+                                        Image(systemName: "xmark.circle.fill")
+                                            .font(.system(size: 20))
+                                            .foregroundStyle(.white)
+                                            .background(Color.black.opacity(0.5), in: Circle())
+                                    }
+                                    .offset(x: 6, y: -6)
+                                }
+                            }
+
+                            // Add more tile
+                            if totalImageCount < maxImages {
+                                PhotosPicker(
+                                    selection: $photoPickerItems,
+                                    maxSelectionCount: maxImages - totalImageCount,
+                                    matching: .images
+                                ) {
+                                    VStack(spacing: 6) {
+                                        Image(systemName: "plus")
+                                            .font(.system(size: 22, weight: .medium))
+                                        Text("Add")
+                                            .font(.system(size: 12, weight: .medium))
+                                    }
+                                    .foregroundStyle(Color(red: 0.55, green: 0.60, blue: 0.85))
+                                    .frame(width: 90, height: 90)
+                                    .background(Color(red: 0.55, green: 0.60, blue: 0.85).opacity(0.08))
+                                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 10)
+                                            .strokeBorder(Color(red: 0.55, green: 0.60, blue: 0.85).opacity(0.4), style: StrokeStyle(lineWidth: 1.5, dash: [5]))
+                                    )
+                                }
+                            }
+                        }
+                        .padding(.vertical, 4)
                     }
                 }
-                .onChange(of: photoPickerItem) {
+                } // Group
+                .onChange(of: photoPickerItems) {
                     Task {
-                        if let data = try? await photoPickerItem?.loadTransferable(type: Data.self),
-                           let image = UIImage(data: data) {
-                            selectedImage = image
+                        for item in photoPickerItems {
+                            if let data = try? await item.loadTransferable(type: Data.self),
+                               let image = UIImage(data: data) {
+                                selectedImages.append(image)
+                            }
                         }
+                        photoPickerItems = []
                     }
                 }
                 FormSectionLabel(title: "Title")
@@ -351,6 +412,12 @@ struct PostItemView: View {
     }
 
     // MARK: - Helper Functions
+    private let maxImages = 5
+
+    private var totalImageCount: Int {
+        existingPhotoUrls.count + selectedImages.count
+    }
+
     private var isFormValid: Bool {
         guard let type = selectedType,
               !title.trimmingCharacters(in: .whitespaces).isEmpty,
@@ -387,10 +454,8 @@ struct PostItemView: View {
         postViewModel.didSucceed = false
 
         Task {
-            var photoData: [Data] = []
-            if let image = selectedImage,
-               let data = image.jpegData(compressionQuality: 0.7) {
-                photoData.append(data)
+            let photoData: [Data] = selectedImages.compactMap {
+                $0.jpegData(compressionQuality: 0.7)
             }
 
             let geoPoint = GeoPoint(
