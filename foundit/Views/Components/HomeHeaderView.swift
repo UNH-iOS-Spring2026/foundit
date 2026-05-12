@@ -12,6 +12,7 @@ struct HomeHeaderView: View {
     let userName: String
     let userEmail: String
     let unreadCount: Int
+    var avatarUrl: String? = nil
     var onPost: () -> Void = {}
     var onNotificationTap: () -> Void = {}
 
@@ -19,13 +20,28 @@ struct HomeHeaderView: View {
         VStack(alignment: .leading, spacing: 16) {
 
             HStack {
-                Circle()
-                    .fill(Color.white.opacity(0.3))
-                    .frame(width: 44, height: 44)
-                    .overlay(
-                        Image(systemName: "person.fill")
-                            .foregroundStyle(.white)
-                    )
+                Group {
+                    if let urlString = avatarUrl, let url = URL(string: urlString) {
+                        CachedAsyncImage(url: url) { phase in
+                            switch phase {
+                            case .success(let image):
+                                image.resizable().scaledToFill()
+                            default:
+                                Image(systemName: "person.fill")
+                                    .foregroundStyle(.white)
+                            }
+                        }
+                    } else {
+                        Circle()
+                            .fill(Color.white.opacity(0.3))
+                            .overlay(
+                                Image(systemName: "person.fill")
+                                    .foregroundStyle(.white)
+                            )
+                    }
+                }
+                .frame(width: 44, height: 44)
+                .clipShape(Circle())
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(userName)

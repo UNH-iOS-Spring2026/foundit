@@ -21,6 +21,7 @@ final class AuthViewModel: ObservableObject {
 	@Published var resetMessage = ""
 	@Published var currentUserEmail = ""
 	@Published var currentDisplayName = ""
+	@Published var currentAvatarUrl: String? = nil
 	@Published var nameChangedAt: Date? = nil
 
 	/// True when the signed-in user authenticated via Google.
@@ -84,9 +85,26 @@ final class AuthViewModel: ObservableObject {
 		do {
 			let doc = try await db.collection("users").document(uid).getDocument()
 			isAdmin = doc.data()?["isAdmin"] as? Bool ?? false
+			currentAvatarUrl = doc.data()?["avatarUrl"] as? String
 		} catch {
 			print("[fetchAdminStatus] \(error)")
 			isAdmin = false
+		}
+	}
+
+	func updateAvatar(imageData: Data) async {
+		guard let uid = currentUser?.uid,
+			  let uiImage = UIImage(data: imageData),
+			  let jpeg = uiImage.jpegData(compressionQuality: 0.7) else { return }
+		do {
+			if let oldUrl = currentAvatarUrl {
+				ImageCache.shared.remove(forKey: oldUrl)
+			}
+			let url = try await StorageService().uploadImage(data: jpeg, path: "users/\(uid)/avatar.jpg")
+			try await UserService().updateAvatarUrl(uid: uid, url: url)
+			currentAvatarUrl = url
+		} catch {
+			errorMessage = error.localizedDescription
 		}
 	}
 

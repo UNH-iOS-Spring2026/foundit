@@ -38,6 +38,7 @@ struct HomeView: View {
                 userName: authVM.currentUser?.displayName ?? "User",
                 userEmail: authVM.currentUser?.email ?? "",
                 unreadCount: notificationViewModel.unreadCount,
+                avatarUrl: authVM.currentAvatarUrl,
                 onPost: {
                     navigateToReport = true
                 },

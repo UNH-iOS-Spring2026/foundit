@@ -7,6 +7,7 @@
 
 import SwiftUI
 import FirebaseAuth
+import PhotosUI
 import UserNotifications
 
 struct ProfileScreen: View {
@@ -18,6 +19,8 @@ struct ProfileScreen: View {
 	@State private var showSettingsAlert = false
 	@State private var showLogoutAlert = false
 	@State private var toastMessage: String? = nil
+	@State private var selectedAvatarPhoto: PhotosPickerItem?
+	@State private var isUploadingAvatar = false
 
 	private var userName: String {
 		authVM.currentDisplayName.isEmpty ? "User" : authVM.currentDisplayName
@@ -32,10 +35,58 @@ struct ProfileScreen: View {
 		NavigationStack {
 			VStack(spacing: 0) {
 				VStack(spacing: 8) {
-					Image(systemName: "person.circle.fill")
-						.resizable()
-						.frame(width: 80, height: 80)
-						.foregroundColor(.gray)
+					PhotosPicker(selection: $selectedAvatarPhoto, matching: .images) {
+						ZStack(alignment: .bottomTrailing) {
+							Group {
+								if let urlString = authVM.currentAvatarUrl,
+								   let url = URL(string: urlString) {
+									CachedAsyncImage(url: url) { phase in
+										switch phase {
+										case .success(let image):
+											image.resizable().scaledToFill()
+										default:
+											Image(systemName: "person.circle.fill")
+												.resizable()
+												.foregroundColor(.gray)
+										}
+									}
+									.id(urlString)
+								} else {
+									Image(systemName: "person.circle.fill")
+										.resizable()
+										.foregroundColor(.gray)
+								}
+							}
+							.frame(width: 80, height: 80)
+							.clipShape(Circle())
+
+							ZStack {
+								if isUploadingAvatar {
+									ProgressView()
+										.scaleEffect(0.7)
+								} else {
+									Image(systemName: "camera.fill")
+										.font(.system(size: 11))
+										.foregroundStyle(.white)
+								}
+							}
+							.frame(width: 26, height: 26)
+							.background(Color(red: 0.55, green: 0.60, blue: 0.85))
+							.clipShape(Circle())
+							.overlay(Circle().strokeBorder(Color(.systemBackground), lineWidth: 2))
+						}
+					}
+					.onChange(of: selectedAvatarPhoto) {
+						guard let item = selectedAvatarPhoto else { return }
+						Task {
+							if let data = try? await item.loadTransferable(type: Data.self) {
+								isUploadingAvatar = true
+								await authVM.updateAvatar(imageData: data)
+								isUploadingAvatar = false
+							}
+							selectedAvatarPhoto = nil
+						}
+					}
 
 					Text(userName)
 						.font(.title2)
@@ -155,6 +206,14 @@ struct ProfileScreen: View {
 				}
 			} message: {
 				Text("Are you sure you want to log out?")
+			}
+			.alert("Upload Failed", isPresented: Binding(
+				get: { !authVM.errorMessage.isEmpty },
+				set: { if !$0 { authVM.errorMessage = "" } }
+			)) {
+				Button("OK", role: .cancel) { authVM.errorMessage = "" }
+			} message: {
+				Text(authVM.errorMessage)
 			}
 		}
 

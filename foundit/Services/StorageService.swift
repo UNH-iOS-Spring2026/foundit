@@ -11,7 +11,9 @@ class StorageService {
 
     func uploadImage(data: Data, path: String) async throws -> String {
         let ref = storage.reference().child(path)
-        _ = try await ref.putDataAsync(data)
+        let metadata = StorageMetadata()
+        metadata.contentType = "image/jpeg"
+        _ = try await ref.putDataAsync(data, metadata: metadata)
         let url = try await ref.downloadURL()
         return url.absoluteString
     }
