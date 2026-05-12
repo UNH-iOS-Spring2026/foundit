@@ -18,6 +18,7 @@ struct OnboardingPage: Identifiable {
 struct OnboardingView: View {
 	@State private var currentPage = 0
 	@State private var goToLogin = false
+	@AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = false
 
 	private let pages: [OnboardingPage] = [
 		OnboardingPage(
@@ -74,13 +75,6 @@ struct OnboardingView: View {
 				Spacer()
 			}
 
-			NavigationLink(
-				destination: LoginView(),
-				isActive: $goToLogin
-			) {
-				EmptyView()
-			}
-			.hidden()
 		}
 		.navigationBarBackButtonHidden(true)
 	}
@@ -146,16 +140,20 @@ struct OnboardingView: View {
 			if currentPage < pages.count - 1 {
 				currentPage += 1
 			} else {
+				hasSeenOnboarding = true
 				goToLogin = true
 			}
 		} label: {
-			Text(currentPage == pages.count - 1 ? "GET STARTED" : "NEXT")
+			Text("Next")
 				.font(.system(size: 14, weight: .bold))
 				.foregroundColor(.black)
 				.frame(maxWidth: .infinity)
 				.frame(height: 46)
 				.background(Color.white)
 				.clipShape(RoundedRectangle(cornerRadius: 10))
+		}
+		.navigationDestination(isPresented: $goToLogin) {
+			LoginView()
 		}
 	}
 }

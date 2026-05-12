@@ -16,6 +16,7 @@ final class AuthViewModel: ObservableObject {
 	@Published var isAuthenticated = false
 	@Published var isAdmin = false
 	@Published var isLoading = false
+	@Published var isAuthLoading = true
 	@Published var errorMessage = ""
 	@Published var resetMessage = ""
 	@Published var currentUserEmail = ""
@@ -73,6 +74,7 @@ final class AuthViewModel: ObservableObject {
 				} else {
 					self.isAdmin = false
 				}
+				self.isAuthLoading = false
 			}
 		}
 	}
