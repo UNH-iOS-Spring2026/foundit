@@ -19,9 +19,10 @@ struct ItemCardView: View {
         VStack(alignment: .leading, spacing: 0) {
 
             ZStack(alignment: .topTrailing) {
-                itemImage
+                Color(.systemGray6)
                     .frame(maxWidth: .infinity)
                     .frame(height: 130)
+                    .overlay(itemImage)
                     .clipped()
 
                 StatusBadgeView(type: item.type)
@@ -35,10 +36,15 @@ struct ItemCardView: View {
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
 
-                Text(item.formattedDate)
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
+                HStack(spacing: 4) {
+                    Image(systemName: "calendar")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                    Text(item.formattedDate)
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                }
 
                 HStack(spacing: 4) {
                     Image(systemName: "mappin.circle.fill")
@@ -85,16 +91,11 @@ struct ItemCardView: View {
                 case .success(let image):
                     image
                         .resizable()
-//                        .scaledToFill()
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 130)
-                        .clipped()
+                        .scaledToFill()
                 case .failure:
                     placeholderImage
                 default:
-                    ProgressView()
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .background(Color(.systemGray6))
+                    Color(.systemGray6)
                 }
             }
         } else {
@@ -103,12 +104,9 @@ struct ItemCardView: View {
     }
 
     private var placeholderImage: some View {
-        ZStack {
-            Color(.systemGray5)
-            Image(systemName: "photo")
-                .font(.system(size: 36))
-                .foregroundStyle(Color(.systemGray2))
-        }
+        Image("default_item_image")
+            .resizable()
+            .scaledToFill()
     }
 }
 

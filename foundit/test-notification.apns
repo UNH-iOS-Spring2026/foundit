@@ -1,0 +1,15 @@
+{
+  "Simulator Target Bundle": "rohan.foundit",
+  "aps": {
+    "alert": {
+      "title": "Test Notification",
+      "body": "This is a test push notification for foundit app!"
+    },
+    "sound": "default",
+    "badge": 1
+  },
+  "customData": {
+    "type": "test",
+    "itemId": "12345"
+  }
+}

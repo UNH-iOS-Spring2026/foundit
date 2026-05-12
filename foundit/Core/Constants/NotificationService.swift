@@ -80,13 +80,19 @@ class NotificationService {
     // MARK: - Create Similar Post Notification
     /// Creates notifications for users who have posted items that match the new post
     func notifyUsersOfSimilarPost(newPost: Post, similarPosts: [Post]) async {
+        var notifiedUserIds = Set<String>()
+
         for similarPost in similarPosts {
             // Don't notify the user about their own post
             guard similarPost.createdBy != newPost.createdBy else { continue }
-            
+
             // Only notify if the types are opposite (lost vs found)
             guard newPost.type != similarPost.type else { continue }
-            
+
+            // Send at most one notification per recipient
+            guard !notifiedUserIds.contains(similarPost.createdBy) else { continue }
+            notifiedUserIds.insert(similarPost.createdBy)
+
             let notification = AppNotification(
                 type: .similarPost,
                 title: "Similar Item \(newPost.type == .found ? "Found" : "Lost")!",
