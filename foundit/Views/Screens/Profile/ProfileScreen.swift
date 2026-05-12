@@ -101,7 +101,6 @@ struct ProfileScreen: View {
 				Divider()
 
 				VStack(spacing: 0) {
-					ProfileMenuItem(icon: "globe", title: "My post") { MyPostsView() }
 					ProfileMenuItem(icon: "square.and.pencil", title: "Edit Profile") {
 						EditProfileView()
 					}
