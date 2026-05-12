@@ -36,7 +36,7 @@ class PostViewModel: ObservableObject {
         isLoading = true
         errorMessage = nil
         do {
-            let resolvedUserId = userId ?? AppConfig.placeholderUserId
+            let resolvedUserId = userId ?? AppConfig.currentUserId
             userPosts = try await postService.fetchPostsByUser(userId: resolvedUserId)
         } catch {
             errorMessage = error.localizedDescription
@@ -93,7 +93,7 @@ class PostViewModel: ObservableObject {
             let now = Timestamp()
             
             // Resolve the user ID
-            let resolvedUserId = createdBy ?? AppConfig.placeholderUserId
+            let resolvedUserId = createdBy ?? AppConfig.currentUserId
             
             // Fetch reporter information
             var reporterInfo: Reporter? = nil
@@ -206,7 +206,7 @@ class PostViewModel: ObservableObject {
                 lastSeenLocation: location,
                 lastSeenLocationText: locationText,
                 status: .open,
-                createdBy: AppConfig.placeholderUserId,
+                createdBy: AppConfig.currentUserId,
                 reporterInfo: reporterInfo,
                 mobileNumber: mobileNumber,
                 hideContactDetails: hideContactDetails,

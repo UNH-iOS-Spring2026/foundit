@@ -15,6 +15,7 @@ struct PostDetailView: View {
     var chatViewModel: ChatViewModel?
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject var authVM: AuthViewModel
+    @EnvironmentObject var tabRouter: TabRouter
     @StateObject private var viewModel = PostViewModel()
     @StateObject private var fallbackChatViewModel = ChatViewModel()
     @State private var similarItems: [Post] = []
@@ -24,6 +25,7 @@ struct PostDetailView: View {
     @State private var showQRSheet = false               // controls the QR drawer presentation
     @State private var qrPayload: QRClaimPayload?        // current payload for the displayed QR
     @State private var isGeneratingQR = false            // spinner state while provisioning + writing token
+    @State private var isMarkingReady = false            // spinner state while marking ready for pickup
     @State private var qrErrorMessage: String?           // inline error under the button
     @State private var showScanner = false               // controls the full-screen scanner cover
     @State private var claimListener: ListenerRegistration? // Firestore listener on the token doc
@@ -364,7 +366,7 @@ struct PostDetailView: View {
                             if isGeneratingQR {
                                 ProgressView()
                                     .progressViewStyle(.circular)
-                                    .tint(Color(red: 0.55, green: 0.60, blue: 0.85))
+                                    .tint(.white)
                             } else {
                                 Image(systemName: "qrcode")
                                     .font(.system(size: 16, weight: .semibold))
@@ -372,14 +374,10 @@ struct PostDetailView: View {
                                     .font(.system(size: 16, weight: .semibold))
                             }
                         }
-                        .foregroundStyle(Color(red: 0.55, green: 0.60, blue: 0.85))
+                        .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 16)
-                        .background(Color.white)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 14)
-                                .strokeBorder(Color(red: 0.55, green: 0.60, blue: 0.85), lineWidth: 1.5)
-                        )
+                        .background(Color(red: 0.55, green: 0.60, blue: 0.85))
                         .clipShape(RoundedRectangle(cornerRadius: 14))
                     }
                     .disabled(isGeneratingQR)
@@ -393,10 +391,45 @@ struct PostDetailView: View {
                             .padding(.horizontal, 16)
                             .padding(.top, 8)
                     }
+
+                    if item.status == .open {
+                        Button {
+                            guard !isMarkingReady else { return }
+                            isMarkingReady = true
+                            Task {
+                                if let chatId = await resolvedChatViewModel.markReadyForPickupFromPost(item) {
+                                    activeChatId = chatId
+                                }
+                                isMarkingReady = false
+                            }
+                        } label: {
+                            HStack(spacing: 8) {
+                                if isMarkingReady {
+                                    ProgressView()
+                                        .progressViewStyle(.circular)
+                                        .tint(.white)
+                                } else {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .font(.system(size: 16, weight: .semibold))
+                                    Text("Mark as Ready for Pickup")
+                                        .font(.system(size: 16, weight: .semibold))
+                                }
+                            }
+                            .foregroundStyle(isMarkingReady ? Color(.systemGray3) : .white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 16)
+                            .background(isMarkingReady ? Color(.systemGray5) : Color(red: 0.55, green: 0.60, blue: 0.85))
+                            .clipShape(RoundedRectangle(cornerRadius: 14))
+                        }
+                        .disabled(isMarkingReady)
+                        .padding(.horizontal, 16)
+                        .padding(.top, 12)
+                    }
                 }
 
                 // Owner of a lost post: scan the QR the officer is showing, to claim.
                 if !authVM.isAdmin && isOwnPost && item.type == .lost {
+                    let isClaimed = item.status == .waitingForPickup || item.status == .returned
                     Button {
                         showScanner = true
                     } label: {
@@ -406,43 +439,39 @@ struct PostDetailView: View {
                             Text("Scan QR to Claim")
                                 .font(.system(size: 16, weight: .semibold))
                         }
-                        .foregroundStyle(.white)
+                        .foregroundStyle(isClaimed ? Color(.systemGray3) : .white)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 16)
-                        .background(Color(red: 0.55, green: 0.60, blue: 0.85))
+                        .background(isClaimed ? Color(.systemGray5) : Color(red: 0.55, green: 0.60, blue: 0.85))
                         .clipShape(RoundedRectangle(cornerRadius: 14))
                     }
+                    .disabled(isClaimed)
                     .padding(.horizontal, 16)
                     .padding(.top, 24)
+
+                    if isClaimed {
+                        Text("This item has already been claimed")
+                            .font(.system(size: 13))
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .padding(.horizontal, 16)
+                            .padding(.top, 4)
+                    }
                 }
 
-                // Only show "Take Action" button if this is NOT the current user's post
-                if !isOwnPost {
+                // Only show "Take Action" button for non-admin users who don't own this post
+                if !authVM.isAdmin && !isOwnPost {
                     Button {
                         guard !isCreatingChat else { return }
                         isCreatingChat = true
                         Task {
                             let chatService = ChatService()
-                            let userId = AppConfig.placeholderUserId
+                            let userId = AppConfig.currentUserId
                             do {
                                 if let existing = try await chatService.fetchChat(forPostId: item.id ?? "", userId: userId) {
                                     activeChatId = existing.id
                                 } else {
-                                    let now = Timestamp()
-                                    let chat = Chat(
-                                        postId: item.id ?? "",
-                                        userId: userId,
-                                        policeId: "campus-police-001",
-                                        itemTitle: item.title,
-                                        itemImageUrl: item.primaryImageUrl,
-                                        lastMessage: "",
-                                        lastMessageAt: now,
-                                        status: .active,
-                                        createdAt: now,
-                                        updatedAt: now
-                                    )
-                                    let chatId = try await chatService.createChat(chat)
-                                    activeChatId = chatId
+                                    activeChatId = ""
                                 }
                             } catch {
                                 print("[TakeAction] Error: \(error)")
@@ -527,7 +556,9 @@ struct PostDetailView: View {
                 chatId: chatId,
                 contactName: authVM.isAdmin ? (reporterName.isEmpty ? "Student" : reporterName) : "Campus Police",
                 postId: item.id ?? "",
-                isAdmin: authVM.isAdmin
+                isAdmin: authVM.isAdmin,
+                pendingItemTitle: item.title,
+                pendingItemImageUrl: item.primaryImageUrl
             )
             .environmentObject(resolvedChatViewModel)
         }
@@ -569,5 +600,6 @@ struct PostDetailView: View {
     NavigationStack {
         PostDetailView(item: Post.mockItems[0])
             .environmentObject(AuthViewModel())
+            .environmentObject(TabRouter())
     }
 }

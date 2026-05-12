@@ -21,7 +21,8 @@ enum PostType: String, Codable {
 enum PostStatus: String, Codable {
     case open
     case matched
-    case closed
+    case waitingForPickup
+    case returned
 }
 
 // MARK: - Reporter Info
