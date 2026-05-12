@@ -253,9 +253,23 @@ struct PostDetailView: View {
                                     .foregroundStyle(Color(.systemGray))
                             )
 
-                        Text(reporterName)
-                            .font(.system(size: 15))
-                            .foregroundStyle(.primary)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(reporterName)
+                                .font(.system(size: 15))
+                                .foregroundStyle(.primary)
+
+                            if !item.hideContactDetails,
+                               let phone = item.mobileNumber, !phone.isEmpty {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "phone.fill")
+                                        .font(.system(size: 11))
+                                        .foregroundStyle(Color(red: 0.55, green: 0.60, blue: 0.85))
+                                    Text(phone)
+                                        .font(.system(size: 13))
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        }
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)

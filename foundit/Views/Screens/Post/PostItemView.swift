@@ -314,15 +314,28 @@ struct PostItemView: View {
                 .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
                 
                 
-                FormSectionLabel(title: "Mobile Number")
-                TextField("", text: $mobileNumber)
-                    .font(.system(size: 16))
-                    .keyboardType(.phonePad)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 16)
-                    .background(Color(.systemBackground))
-                    .clipShape(RoundedRectangle(cornerRadius: 14))
-                    .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
+                FormSectionLabel(title: "Mobile Number (optional)")
+                VStack(alignment: .leading, spacing: 4) {
+                    TextField("", text: $mobileNumber)
+                        .font(.system(size: 16))
+                        .keyboardType(.phonePad)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 16)
+                        .background(Color(.systemBackground))
+                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                        .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 14)
+                                .strokeBorder(!isPhoneValid ? Color.red.opacity(0.6) : Color.clear, lineWidth: 1.5)
+                        )
+
+                    if !isPhoneValid {
+                        Text("Please enter a valid phone number (7–15 digits).")
+                            .font(.system(size: 12))
+                            .foregroundStyle(.red)
+                            .padding(.horizontal, 4)
+                    }
+                }
                 
                 FormSectionLabel(title: "Location")
                 VStack(spacing: 0) {
@@ -505,12 +518,18 @@ struct PostItemView: View {
         existingPhotoUrls.count + selectedImages.count
     }
 
+    private var isPhoneValid: Bool {
+        let digits = mobileNumber.filter { $0.isNumber }
+        return mobileNumber.trimmingCharacters(in: .whitespaces).isEmpty || (digits.count >= 7 && digits.count <= 15)
+    }
+
     private var isFormValid: Bool {
-        guard let type = selectedType,
+        guard selectedType != nil,
               !title.trimmingCharacters(in: .whitespaces).isEmpty,
               !descriptionText.trimmingCharacters(in: .whitespaces).isEmpty,
               !location.trimmingCharacters(in: .whitespaces).isEmpty,
-              let _ = selectedCoordinate else {
+              selectedCoordinate != nil,
+              isPhoneValid else {
             return false
         }
         return true
@@ -544,6 +563,8 @@ struct PostItemView: View {
         )
         existingPhotoUrls = post.photoUrls
         selectedDate = post.createdAt.dateValue()
+        mobileNumber = post.mobileNumber ?? ""
+        hideContactDetails = post.hideContactDetails
     }
     
     private func submitReport() {
@@ -564,6 +585,9 @@ struct PostItemView: View {
                 longitude: coordinate.longitude
             )
 
+            let trimmedPhone = mobileNumber.trimmingCharacters(in: .whitespaces)
+            let phoneToSave: String? = trimmedPhone.isEmpty ? nil : trimmedPhone
+
             if isEditMode, let postId = postToEdit?.id {
                 await postViewModel.updatePost(
                     id: postId,
@@ -575,7 +599,9 @@ struct PostItemView: View {
                     locationText: location,
                     photoData: photoData,
                     existingPhotoUrls: existingPhotoUrls,
-                    reporterInfo: postToEdit?.reporterInfo  // Preserve reporter info
+                    reporterInfo: postToEdit?.reporterInfo,
+                    mobileNumber: phoneToSave,
+                    hideContactDetails: hideContactDetails
                 )
             } else {
                 await postViewModel.createPost(
@@ -585,7 +611,9 @@ struct PostItemView: View {
                     type: type,
                     location: geoPoint,
                     locationText: location,
-                    photoData: photoData
+                    photoData: photoData,
+                    mobileNumber: phoneToSave,
+                    hideContactDetails: hideContactDetails
                 )
             }
 

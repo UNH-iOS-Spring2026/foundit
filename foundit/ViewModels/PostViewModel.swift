@@ -66,6 +66,8 @@ class PostViewModel: ObservableObject {
         location: GeoPoint,
         locationText: String,
         photoData: [Data] = [],
+        mobileNumber: String? = nil,
+        hideContactDetails: Bool = false,
         createdBy: String? = nil
     ) async {
         isLoading = true
@@ -116,6 +118,8 @@ class PostViewModel: ObservableObject {
                 status: .open,
                 createdBy: resolvedUserId,
                 reporterInfo: reporterInfo,
+                mobileNumber: mobileNumber,
+                hideContactDetails: hideContactDetails,
                 createdAt: now,
                 updatedAt: now
             )
@@ -172,7 +176,9 @@ class PostViewModel: ObservableObject {
         locationText: String,
         photoData: [Data] = [],
         existingPhotoUrls: [String] = [],
-        reporterInfo: Reporter? = nil
+        reporterInfo: Reporter? = nil,
+        mobileNumber: String? = nil,
+        hideContactDetails: Bool = false
     ) async {
         isLoading = true
         errorMessage = nil
@@ -201,7 +207,9 @@ class PostViewModel: ObservableObject {
                 lastSeenLocationText: locationText,
                 status: .open,
                 createdBy: AppConfig.placeholderUserId,
-                reporterInfo: reporterInfo,  // Preserve reporter info
+                reporterInfo: reporterInfo,
+                mobileNumber: mobileNumber,
+                hideContactDetails: hideContactDetails,
                 createdAt: Timestamp(), // This will be ignored in merge
                 updatedAt: Timestamp()
             )
