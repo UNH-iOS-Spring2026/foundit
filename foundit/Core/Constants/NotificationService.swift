@@ -78,7 +78,7 @@ class NotificationService {
     }
     
     // MARK: - Create Similar Post Notification
-    /// Creates notifications for users who have posted items that match the new post
+    /// Creates notifications for users whose posts match by category, opposite type, AND are within 5 km.
     func notifyUsersOfSimilarPost(newPost: Post, similarPosts: [Post]) async {
         var notifiedUserIds = Set<String>()
 
@@ -89,26 +89,48 @@ class NotificationService {
             // Only notify if the types are opposite (lost vs found)
             guard newPost.type != similarPost.type else { continue }
 
+            // Only notify if both posts are within 5 km of each other
+            let km = distanceInKm(from: newPost.lastSeenLocation, to: similarPost.lastSeenLocation)
+            guard km <= 5.0 else { continue }
+
             // Send at most one notification per recipient
             guard !notifiedUserIds.contains(similarPost.createdBy) else { continue }
             notifiedUserIds.insert(similarPost.createdBy)
 
+            let distanceText = km < 1.0
+                ? "\(Int(km * 1000)) m"
+                : String(format: "%.1f km", km)
+
             let notification = AppNotification(
                 type: .similarPost,
-                title: "Similar Item \(newPost.type == .found ? "Found" : "Lost")!",
-                message: "Someone \(newPost.type == .found ? "found" : "lost") a \(newPost.category) near \(newPost.lastSeenLocationText). It might match your \(similarPost.type == .lost ? "lost" : "found") item '\(similarPost.title)'.",
+                title: "Possible Match Nearby!",
+                message: "Someone \(newPost.type == .found ? "found" : "lost") a \(newPost.category) at \(newPost.lastSeenLocationText) — only \(distanceText) from where you \(similarPost.type == .lost ? "lost" : "found") '\(similarPost.title)'.",
                 relatedPostId: newPost.id,
                 relatedUserId: newPost.createdBy,
                 imageUrl: newPost.primaryImageUrl,
                 recipientId: similarPost.createdBy,
                 timestamp: Timestamp()
             )
-            
+
             do {
                 try await createNotification(notification)
             } catch {
                 print("Failed to create notification: \(error)")
             }
         }
+    }
+
+    // MARK: - Haversine Distance
+    /// Returns the great-circle distance in kilometres between two GeoPoints.
+    private func distanceInKm(from: GeoPoint, to: GeoPoint) -> Double {
+        let r = 6371.0
+        let lat1 = from.latitude * .pi / 180
+        let lat2 = to.latitude * .pi / 180
+        let dLat = (to.latitude - from.latitude) * .pi / 180
+        let dLon = (to.longitude - from.longitude) * .pi / 180
+
+        let a = sin(dLat / 2) * sin(dLat / 2)
+            + cos(lat1) * cos(lat2) * sin(dLon / 2) * sin(dLon / 2)
+        return r * 2 * atan2(sqrt(a), sqrt(1 - a))
     }
 }
