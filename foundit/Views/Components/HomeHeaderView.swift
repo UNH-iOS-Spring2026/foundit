@@ -15,42 +15,48 @@ struct HomeHeaderView: View {
     var avatarUrl: String? = nil
     var onPost: () -> Void = {}
     var onNotificationTap: () -> Void = {}
+    var onProfileTap: () -> Void = {}
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
 
             HStack {
-                Group {
-                    if let urlString = avatarUrl, let url = URL(string: urlString) {
-                        CachedAsyncImage(url: url) { phase in
-                            switch phase {
-                            case .success(let image):
-                                image.resizable().scaledToFill()
-                            default:
-                                Image(systemName: "person.fill")
-                                    .foregroundStyle(.white)
+                Button(action: onProfileTap) {
+                    HStack(spacing: 10) {
+                        Group {
+                            if let urlString = avatarUrl, let url = URL(string: urlString) {
+                                CachedAsyncImage(url: url) { phase in
+                                    switch phase {
+                                    case .success(let image):
+                                        image.resizable().scaledToFill()
+                                    default:
+                                        Image(systemName: "person.fill")
+                                            .foregroundStyle(.white)
+                                    }
+                                }
+                            } else {
+                                Circle()
+                                    .fill(Color.white.opacity(0.3))
+                                    .overlay(
+                                        Image(systemName: "person.fill")
+                                            .foregroundStyle(.white)
+                                    )
                             }
                         }
-                    } else {
-                        Circle()
-                            .fill(Color.white.opacity(0.3))
-                            .overlay(
-                                Image(systemName: "person.fill")
-                                    .foregroundStyle(.white)
-                            )
+                        .frame(width: 44, height: 44)
+                        .clipShape(Circle())
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(userName)
+                                .font(.system(size: 16, weight: .bold))
+                                .foregroundStyle(.white)
+                            Text(userEmail)
+                                .font(.system(size: 13))
+                                .foregroundStyle(.white.opacity(0.85))
+                        }
                     }
                 }
-                .frame(width: 44, height: 44)
-                .clipShape(Circle())
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(userName)
-                        .font(.system(size: 16, weight: .bold))
-                        .foregroundStyle(.white)
-                    Text(userEmail)
-                        .font(.system(size: 13))
-                        .foregroundStyle(.white.opacity(0.85))
-                }
+                .buttonStyle(.plain)
 
                 Spacer()
 

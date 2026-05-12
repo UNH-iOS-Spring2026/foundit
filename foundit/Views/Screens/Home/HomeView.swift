@@ -24,6 +24,7 @@ struct HomeView: View {
     @State private var navigateToEdit: Bool = false
     @State private var shouldRefreshAfterPost: Bool = false
     @State private var notificationPost: Post? = nil
+    @State private var navigateToProfile: Bool = false
 
     
     private let columns = [
@@ -44,6 +45,9 @@ struct HomeView: View {
                 },
                 onNotificationTap: {
                     showNotifications = true
+                },
+                onProfileTap: {
+                    navigateToProfile = true
                 }
             )
             // MARK: Search
@@ -152,6 +156,10 @@ struct HomeView: View {
                 await viewModel.refreshItems()
             }
             Spacer()
+        }
+        .navigationDestination(isPresented: $navigateToProfile) {
+            ProfileScreen()
+                .environmentObject(authVM)
         }
         .navigationDestination(isPresented: $navigateToReport) {
             PostItemView(onPostCreated: {
