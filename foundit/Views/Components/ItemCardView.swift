@@ -36,10 +36,15 @@ struct ItemCardView: View {
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
 
-                Text(item.formattedDate)
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
+                HStack(spacing: 4) {
+                    Image(systemName: "calendar")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                    Text(item.formattedDate)
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                }
 
                 HStack(spacing: 4) {
                     Image(systemName: "mappin.circle.fill")
