@@ -5,6 +5,7 @@
 
 import Foundation
 import UserNotifications
+import UIKit
 
 final class LocalNotificationManager: NSObject, UNUserNotificationCenterDelegate {
     static let shared = LocalNotificationManager()
@@ -55,6 +56,20 @@ final class LocalNotificationManager: NSObject, UNUserNotificationCenterDelegate
         UNUserNotificationCenter.current().add(request) { error in
             if let error = error {
                 print("LocalNotificationManager: failed to deliver: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    // MARK: - Badge Management
+
+    func setBadge(count: Int) {
+        if #available(iOS 16.0, *) {
+            UNUserNotificationCenter.current().setBadgeCount(count) { error in
+                if let error { print("[LocalNotificationManager] setBadgeCount error: \(error)") }
+            }
+        } else {
+            DispatchQueue.main.async {
+                UIApplication.shared.applicationIconBadgeNumber = count
             }
         }
     }

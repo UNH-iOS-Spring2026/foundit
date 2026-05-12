@@ -44,6 +44,7 @@ class NotificationViewModel: ObservableObject {
             notifications = try await notificationService.fetchNotifications(for: currentUserId)
             notificationSections = AppNotification.groupNotifications(notifications)
             unreadCount = notifications.filter { !$0.isRead }.count
+            LocalNotificationManager.shared.setBadge(count: unreadCount)
         } catch {
             errorMessage = "Failed to load notifications: \(error.localizedDescription)"
             print("[NotificationViewModel] fetchNotifications error: \(error)")
@@ -64,6 +65,7 @@ class NotificationViewModel: ObservableObject {
                 unreadCount = max(0, unreadCount - 1)
             }
             notificationSections = AppNotification.groupNotifications(notifications)
+            LocalNotificationManager.shared.setBadge(count: unreadCount)
         } catch {
             print("[NotificationViewModel] markAsRead error: \(error)")
         }
@@ -81,6 +83,7 @@ class NotificationViewModel: ObservableObject {
             }
             unreadCount = 0
             notificationSections = AppNotification.groupNotifications(notifications)
+            LocalNotificationManager.shared.setBadge(count: 0)
         } catch {
             errorMessage = "Failed to mark all as read: \(error.localizedDescription)"
             print("[NotificationViewModel] markAllAsRead error: \(error)")
@@ -99,6 +102,7 @@ class NotificationViewModel: ObservableObject {
                 unreadCount = max(0, unreadCount - 1)
             }
             notificationSections = AppNotification.groupNotifications(notifications)
+            LocalNotificationManager.shared.setBadge(count: unreadCount)
         } catch {
             errorMessage = "Failed to delete notification: \(error.localizedDescription)"
             print("[NotificationViewModel] deleteNotification error: \(error)")
@@ -173,6 +177,7 @@ class NotificationViewModel: ObservableObject {
                         self.notifications.insert(notification, at: 0)
                         if !notification.isRead {
                             self.unreadCount += 1
+                            LocalNotificationManager.shared.setBadge(count: self.unreadCount)
                         }
                         self.notificationSections = AppNotification.groupNotifications(self.notifications)
                     }
