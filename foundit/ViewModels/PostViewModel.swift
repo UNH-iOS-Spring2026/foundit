@@ -131,7 +131,7 @@ class PostViewModel: ObservableObject {
             post.id = firebaseDocumentId
             
             // IMPORTANT: Find similar posts and notify users
-            let similarPosts = try await postService.fetchSimilarPosts(to: post, limit: 10)
+            let similarPosts = try await postService.fetchCandidatePostsForNotification(matching: post)
             await notificationService.notifyUsersOfSimilarPost(newPost: post, similarPosts: similarPosts)
             
             await fetchPosts()

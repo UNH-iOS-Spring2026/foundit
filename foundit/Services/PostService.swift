@@ -107,13 +107,13 @@ class PostService {
     }
     
     func fetchSimilarPosts(to post: Post, limit: Int = 6) async throws -> [Post] {
-        
+
         // Fetch posts with the same category only
         let categoryQuery: Query = db.collection(collection)
             .whereField("category", isEqualTo: post.category)
-        
+
         let categorySnapshot = try await categoryQuery.getDocuments()
-        
+
         var posts: [Post] = []
         for document in categorySnapshot.documents {
             do {
@@ -122,7 +122,7 @@ class PostService {
                 if fetchedPost.id == nil || fetchedPost.id?.isEmpty == true {
                     fetchedPost.id = document.documentID
                 }
-                                
+
                 // Skip the current post itself
                 if fetchedPost.id != post.id {
                     posts.append(fetchedPost)
@@ -132,10 +132,37 @@ class PostService {
                 continue
             }
         }
-        
+
         // Sort by creation date in memory and limit results
         let sortedPosts = posts.sorted { $0.createdAt.dateValue() > $1.createdAt.dateValue() }
         let limitedPosts = Array(sortedPosts.prefix(limit))
         return limitedPosts
+    }
+
+    /// Fetches ALL posts of the opposite type in the same category — no limit.
+    /// Used for notification matching so no qualifying post is ever missed.
+    func fetchCandidatePostsForNotification(matching post: Post) async throws -> [Post] {
+        let oppositeType: PostType = post.type == .lost ? .found : .lost
+
+        let snapshot = try await db.collection(collection)
+            .whereField("category", isEqualTo: post.category)
+            .whereField("type", isEqualTo: oppositeType.rawValue)
+            .getDocuments()
+
+        var posts: [Post] = []
+        for document in snapshot.documents {
+            do {
+                var fetchedPost = try document.data(as: Post.self)
+                if fetchedPost.id == nil || fetchedPost.id?.isEmpty == true {
+                    fetchedPost.id = document.documentID
+                }
+                if fetchedPost.id != post.id {
+                    posts.append(fetchedPost)
+                }
+            } catch {
+                continue
+            }
+        }
+        return posts
     }
 }

@@ -79,8 +79,10 @@ class NotificationService {
     
     // MARK: - Create Similar Post Notification
     /// Creates notifications for users whose posts match by category, opposite type, AND are within 5 km.
+    /// Also notifies the new post's author if matching posts already exist.
     func notifyUsersOfSimilarPost(newPost: Post, similarPosts: [Post]) async {
         var notifiedUserIds = Set<String>()
+        var firstMatchForNewAuthor: Post? = nil
 
         for similarPost in similarPosts {
             // Don't notify the user about their own post
@@ -93,7 +95,12 @@ class NotificationService {
             let km = distanceInKm(from: newPost.lastSeenLocation, to: similarPost.lastSeenLocation)
             guard km <= 5.0 else { continue }
 
-            // Send at most one notification per recipient
+            // Track the first qualifying match to notify the new post's author
+            if firstMatchForNewAuthor == nil {
+                firstMatchForNewAuthor = similarPost
+            }
+
+            // Send at most one notification per recipient (owner of the similar post)
             guard !notifiedUserIds.contains(similarPost.createdBy) else { continue }
             notifiedUserIds.insert(similarPost.createdBy)
 
@@ -116,6 +123,31 @@ class NotificationService {
                 try await createNotification(notification)
             } catch {
                 print("Failed to create notification: \(error)")
+            }
+        }
+
+        // Notify the new post's author about the best existing match
+        if let match = firstMatchForNewAuthor {
+            let km = distanceInKm(from: newPost.lastSeenLocation, to: match.lastSeenLocation)
+            let distanceText = km < 1.0
+                ? "\(Int(km * 1000)) m"
+                : String(format: "%.1f km", km)
+
+            let notification = AppNotification(
+                type: .similarPost,
+                title: "Possible Match Nearby!",
+                message: "A '\(match.title)' was \(match.type == .found ? "found" : "reported lost") only \(distanceText) from your location.",
+                relatedPostId: match.id,
+                relatedUserId: match.createdBy,
+                imageUrl: match.primaryImageUrl ?? newPost.primaryImageUrl,
+                recipientId: newPost.createdBy,
+                timestamp: Timestamp()
+            )
+
+            do {
+                try await createNotification(notification)
+            } catch {
+                print("Failed to create notification for new post author: \(error)")
             }
         }
     }
