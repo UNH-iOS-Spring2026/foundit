@@ -26,6 +26,7 @@ class NotificationViewModel: ObservableObject {
         self.currentUserId = userId
         print("[NotificationViewModel] init — userId: '\(userId)'")
         startListening()
+        Task { await fetchNotifications() }
     }
 
     deinit {

@@ -7,7 +7,37 @@
 import SwiftUI
 import PhotosUI
 import CoreLocation
+import MapKit
 import FirebaseFirestore
+import Combine
+
+// MARK: - Location Search Completer
+private class LocationSearchCompleter: NSObject, ObservableObject, MKLocalSearchCompleterDelegate {
+    @Published var suggestions: [MKLocalSearchCompletion] = []
+    private let completer = MKLocalSearchCompleter()
+
+    override init() {
+        super.init()
+        completer.delegate = self
+        completer.resultTypes = [.address, .pointOfInterest]
+    }
+
+    func search(query: String) {
+        if query.trimmingCharacters(in: .whitespaces).isEmpty {
+            suggestions = []
+        } else {
+            completer.queryFragment = query
+        }
+    }
+
+    func completerDidUpdateResults(_ completer: MKLocalSearchCompleter) {
+        suggestions = Array(completer.results.prefix(5))
+    }
+
+    func completer(_ completer: MKLocalSearchCompleter, didFailWithError error: Error) {
+        suggestions = []
+    }
+}
 
 // MARK: - PostItemView
 struct PostItemView: View {
@@ -35,6 +65,8 @@ struct PostItemView: View {
     @State private var hideContactDetails: Bool = false
     @State private var showLocationPicker: Bool = false
     @State private var selectedCoordinate: CLLocationCoordinate2D? = nil
+    @StateObject private var locationCompleter = LocationSearchCompleter()
+    @FocusState private var locationFieldFocused: Bool
     @State private var existingPhotoUrls: [String] = []
     @State private var showSuccessAlert = false
     @State private var showErrorAlert = false
@@ -293,20 +325,75 @@ struct PostItemView: View {
                     .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
                 
                 FormSectionLabel(title: "Location")
-                HStack {
-                    TextField("", text: $location)
-                        .font(.system(size: 16))
-                    Spacer()
-                    Button {
-                        showLocationPicker = true
-                    } label: {
-                        Image(systemName: "mappin.circle.fill")
-                            .font(.system(size: 20))
-                            .foregroundStyle(.pink)
+                VStack(spacing: 0) {
+                    HStack(spacing: 10) {
+                        Image(systemName: "magnifyingglass")
+                            .foregroundStyle(.secondary)
+                        TextField("Search location…", text: $location)
+                            .font(.system(size: 16))
+                            .focused($locationFieldFocused)
+                            .onChange(of: location) { _, newValue in
+                                locationCompleter.search(query: newValue)
+                            }
+                        if !location.isEmpty {
+                            Button {
+                                location = ""
+                                selectedCoordinate = nil
+                                locationCompleter.suggestions = []
+                            } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundStyle(Color(.systemGray3))
+                            }
+                        }
+                        Button {
+                            locationFieldFocused = false
+                            showLocationPicker = true
+                        } label: {
+                            Image(systemName: "mappin.circle.fill")
+                                .font(.system(size: 20))
+                                .foregroundStyle(.pink)
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 14)
+
+                    // Autocomplete suggestions
+                    let suggestions = locationCompleter.suggestions
+                    if locationFieldFocused && !suggestions.isEmpty {
+                        Divider()
+                        ForEach(suggestions, id: \.self) { suggestion in
+                            Button {
+                                selectLocationSuggestion(suggestion)
+                            } label: {
+                                HStack(spacing: 12) {
+                                    Image(systemName: "mappin")
+                                        .font(.system(size: 13))
+                                        .foregroundStyle(Color(red: 0.55, green: 0.60, blue: 0.85))
+                                        .frame(width: 20)
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(suggestion.title)
+                                            .font(.system(size: 14, weight: .medium))
+                                            .foregroundStyle(.primary)
+                                            .lineLimit(1)
+                                        if !suggestion.subtitle.isEmpty {
+                                            Text(suggestion.subtitle)
+                                                .font(.system(size: 12))
+                                                .foregroundStyle(.secondary)
+                                                .lineLimit(1)
+                                        }
+                                    }
+                                    Spacer()
+                                }
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 10)
+                            }
+                            .buttonStyle(.plain)
+                            if suggestion != suggestions.last {
+                                Divider().padding(.horizontal, 16)
+                            }
+                        }
                     }
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 16)
                 .background(Color(.systemBackground))
                 .clipShape(RoundedRectangle(cornerRadius: 14))
                 .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
@@ -429,6 +516,20 @@ struct PostItemView: View {
         return true
     }
     
+    private func selectLocationSuggestion(_ suggestion: MKLocalSearchCompletion) {
+        locationFieldFocused = false
+        locationCompleter.suggestions = []
+        let parts = [suggestion.title, suggestion.subtitle].filter { !$0.isEmpty }
+        location = parts.joined(separator: ", ")
+        Task {
+            let request = MKLocalSearch.Request(completion: suggestion)
+            if let response = try? await MKLocalSearch(request: request).start(),
+               let placemark = response.mapItems.first?.placemark {
+                selectedCoordinate = placemark.coordinate
+            }
+        }
+    }
+
     private func loadPostData() {
         guard let post = postToEdit else { return }
         
