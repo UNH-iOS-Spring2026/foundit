@@ -41,6 +41,9 @@ final class LocalNotificationManager: NSObject, UNUserNotificationCenterDelegate
         content.title = notification.title
         content.body = notification.message
         content.sound = .default
+        if #available(iOS 15.0, *) {
+            content.interruptionLevel = .timeSensitive
+        }
 
         var userInfo: [String: Any] = ["type": notification.type.rawValue]
         if let postId = notification.relatedPostId {
