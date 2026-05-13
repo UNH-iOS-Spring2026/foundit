@@ -2,14 +2,22 @@
 //  Post.swift
 //  foundit
 //
+//  Written by Rohan Poudel, assisted by Claude.
+//
+//  The user-facing record of a lost or found report. This is what the
+//  home feed, search, and post detail screens are built around. The
+//  matching physical-custody record lives in `Item.swift`.
+//
 
 import Foundation
 import FirebaseFirestore
 
+/// Whether the post is someone reporting a lost item or a found item.
+/// Drives the badge color and the matching logic on the backend.
 enum PostType: String, Codable {
     case lost
     case found
-    
+
     var label: String {
         switch self {
         case .lost:  return "Lost"
@@ -18,6 +26,8 @@ enum PostType: String, Codable {
     }
 }
 
+/// Lifecycle of a post. `returned` is set by the QR claim flow once the
+/// item physically reaches the owner.
 enum PostStatus: String, Codable {
     case open
     case matched
@@ -26,6 +36,10 @@ enum PostStatus: String, Codable {
 }
 
 // MARK: - Reporter Info
+
+/// Display-only snapshot of the person who created the post.
+/// Embedded inside the Post document so the feed can render the row
+/// without fetching the full user profile.
 struct Reporter: Codable, Hashable {
     var name: String
     var avatarUrl: String?  // URL to avatar image in Firebase Storage
@@ -37,24 +51,37 @@ struct Reporter: Codable, Hashable {
 }
 
 // MARK: - Main Post Model
+
+/// One lost or found report. Lives in the top-level `posts` collection
+/// and is the source of truth for the feed, search, and detail screens.
 struct Post: Identifiable, Codable, Hashable {
     @DocumentID var id: String?
     var type: PostType
     var title: String
     var description: String
+    /// Free-form category label ("Electronics", "Books", etc.).
     var category: String
-    var photoUrls: [String]  // Firebase Storage URLs
+    /// Firebase Storage URLs for the uploaded photos. First entry is the cover.
+    var photoUrls: [String]
+    /// Geo-coordinate where the item was last seen / found.
     var lastSeenLocation: GeoPoint
+    /// Human-readable version of the location ("Maxcy Hall", "Bergami").
     var lastSeenLocationText: String
     var status: PostStatus
-    var createdBy: String  // User ID
-    var reporterInfo: Reporter?  // Optional reporter details
+    /// UID of the user who created the post.
+    var createdBy: String
+    /// Embedded snapshot of the reporter for inbox/feed display.
+    var reporterInfo: Reporter?
     var mobileNumber: String?
+    /// When true the UI hides the phone number even if it exists.
     var hideContactDetails: Bool
     var createdAt: Timestamp
     var updatedAt: Timestamp
     
-    // Custom decoding to handle missing photoUrls field
+    // Custom decoding path. We need this because @DocumentID can't coexist
+    // with a synthesized init and because older docs may be missing optional
+    // fields like `photoUrls` and `hideContactDetails` — those are defaulted
+    // instead of failing the whole decode.
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         
@@ -79,7 +106,8 @@ struct Post: Identifiable, Codable, Hashable {
         updatedAt = try container.decode(Timestamp.self, forKey: .updatedAt)
     }
     
-    // Standard initializer for creating posts
+    // Convenience initializer used when constructing posts in code
+    // (mock data, post-creation flow, tests).
     init(
         id: String? = nil,
         type: PostType,
@@ -160,12 +188,17 @@ extension Post {
 }
 
 // MARK: - Helper Types
+
+/// Plain coordinate pair used by the map UI — decoupled from Firestore's
+/// GeoPoint so SwiftUI views don't need to import FirebaseFirestore.
 struct ItemCoordinate {
     let latitude: Double
     let longitude: Double
 }
 
 // MARK: - Mock Data for Testing
+
+/// Static sample posts used by SwiftUI previews and offline UI work.
 extension Post {
     static let mockItems: [Post] = [
         Post(

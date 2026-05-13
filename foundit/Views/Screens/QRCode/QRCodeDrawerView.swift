@@ -2,9 +2,15 @@
 //  QRCodeDrawerView.swift
 //  foundit
 //
+//  Written by Rohan Poudel, assisted by Claude.
+//
 //  Bottom-sheet shown to the police when they tap "Show QR Code".
 //  Renders a QR image from the given string, shows a live countdown
 //  until the code expires, and exposes Copy / Share actions.
+//
+//  Paired with `QRScannerView` (the student side) and backed by
+//  `QRClaimPayload` for the encoded URL + `ClaimTokenService` for the
+//  Firestore record that makes the code verifiable.
 //
 
 import SwiftUI
@@ -13,6 +19,8 @@ import CoreImage.CIFilterBuiltins
 
 // MARK: - QR Code Drawer (Bottom Sheet)
 
+/// Bottom-sheet that renders a QR image plus header, countdown, and actions.
+/// Pure presentation — the parent decides what to encode and when to dismiss.
 struct QRCodeDrawerView: View {
     /// The string to encode into the QR image (the `foundit-claim://…` URL).
     let itemCode: String

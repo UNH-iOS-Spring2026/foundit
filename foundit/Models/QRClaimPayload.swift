@@ -2,9 +2,16 @@
 //  QRClaimPayload.swift
 //  foundit
 //
+//  Written by Rohan Poudel, assisted by Claude.
+//
 //  Represents the data encoded inside a QR code for the claim flow.
 //  The police phone generates one of these every time "Show QR Code"
 //  is tapped, and the resulting string is what gets drawn as the QR.
+//
+//  The payload itself is the only thing carried in the QR image — the
+//  matching server-side record lives in `ClaimToken` so the scanner can
+//  verify the code wasn't forged, hasn't expired, and hasn't already
+//  been used.
 //
 
 import Foundation

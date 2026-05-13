@@ -2,21 +2,33 @@
 //  User.swift
 //  foundit
 //
+//  Written by Rohan Poudel, assisted by Claude.
+//
+//  Application user profile stored in the `users` Firestore collection.
+//  Mirrors the Firebase Auth account by UID and adds the app-specific
+//  display fields (name, avatar, admin flag) the UI needs.
+//
 
 import Foundation
 import FirebaseFirestore
 
+/// User profile document. The `id` matches the Firebase Auth UID, which is
+/// what every other collection refers to when storing `createdBy` / `userId`.
 struct User: Identifiable, Codable {
     @DocumentID var id: String?
     var displayName: String
     var email: String?
+    /// True for police/admin accounts. Drives which tab bar is shown at launch.
     var isAdmin: Bool?
+    /// Firebase Storage URL for the avatar image.
     var avatarUrl: String?
     var createdAt: Timestamp?
     var updatedAt: Timestamp?
+    /// Last time displayName was changed. Used to rate-limit renames.
     var nameChangedAt: Timestamp?
-    
-    // Custom initializer for decoding with defaults
+
+    // Custom decoding path: tolerates documents missing optional fields
+    // and defaults isAdmin to false rather than throwing.
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         
@@ -30,7 +42,7 @@ struct User: Identifiable, Codable {
         nameChangedAt = try container.decodeIfPresent(Timestamp.self, forKey: .nameChangedAt)
     }
     
-    // Regular initializer
+    // Convenience initializer used when creating profiles in code.
     init(
         id: String? = nil,
         displayName: String,
