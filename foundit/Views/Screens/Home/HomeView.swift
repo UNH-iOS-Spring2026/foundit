@@ -14,6 +14,7 @@ struct HomeView: View {
     @EnvironmentObject var postViewModel: PostViewModel
     @EnvironmentObject var chatViewModel: ChatViewModel
     @EnvironmentObject var authVM: AuthViewModel
+    @EnvironmentObject var tabRouter: TabRouter
     @Binding var searchText: String
     @State private var navigateToReport: Bool = false
     @State private var showNotifications: Bool = false
@@ -22,6 +23,8 @@ struct HomeView: View {
     @State private var postToEdit: Post? = nil
     @State private var navigateToEdit: Bool = false
     @State private var shouldRefreshAfterPost: Bool = false
+    @State private var notificationPost: Post? = nil
+    @State private var navigateToProfile: Bool = false
 
     
     private let columns = [
@@ -35,12 +38,16 @@ struct HomeView: View {
             HomeHeaderView(
                 userName: authVM.currentUser?.displayName ?? "User",
                 userEmail: authVM.currentUser?.email ?? "",
-                hasNotification: notificationViewModel.unreadCount > 0,
+                unreadCount: notificationViewModel.unreadCount,
+                avatarUrl: authVM.currentAvatarUrl,
                 onPost: {
                     navigateToReport = true
                 },
                 onNotificationTap: {
                     showNotifications = true
+                },
+                onProfileTap: {
+                    navigateToProfile = true
                 }
             )
             // MARK: Search
@@ -150,6 +157,10 @@ struct HomeView: View {
             }
             Spacer()
         }
+        .navigationDestination(isPresented: $navigateToProfile) {
+            ProfileScreen()
+                .environmentObject(authVM)
+        }
         .navigationDestination(isPresented: $navigateToReport) {
             PostItemView(onPostCreated: {
                 shouldRefreshAfterPost = true
@@ -159,15 +170,23 @@ struct HomeView: View {
         .navigationDestination(isPresented: $showNotifications) {
             NotificationView()
         }
+        .navigationDestination(item: $notificationPost) { post in
+            PostDetailView(item: post, chatViewModel: chatViewModel)
+        }
         .navigationDestination(isPresented: $navigateToEdit) {
             if let post = postToEdit {
                 PostItemView(postToEdit: post)
                     .environmentObject(postViewModel)
             }
         }
-        .task {
-            // Fetch notification unread count when view appears
-            await notificationViewModel.refreshUnreadCount()
+        .onChange(of: tabRouter.pendingPostId) { _, postId in
+            guard let postId, !postId.isEmpty else { return }
+            tabRouter.pendingPostId = nil
+            Task {
+                if let post = try? await postViewModel.fetchPostById(id: postId) {
+                    notificationPost = post
+                }
+            }
         }
         .onChange(of: searchText) { _, newValue in
             viewModel.searchText = newValue

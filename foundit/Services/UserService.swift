@@ -14,4 +14,11 @@ class UserService {
         let snapshot = try await db.collection(collection).document(uid).getDocument()
         return try snapshot.data(as: User.self)
     }
+
+    func updateAvatarUrl(uid: String, url: String) async throws {
+        try await db.collection(collection).document(uid).updateData([
+            "avatarUrl": url,
+            "updatedAt": FieldValue.serverTimestamp()
+        ])
+    }
 }

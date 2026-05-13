@@ -8,25 +8,27 @@
 import SwiftUI
 
 // MARK: ItemImageCarouselView
-// Swipeable image carousel with page indicator dots and arrow hint.
+// Swipeable image carousel with page indicator dots and tap-to-fullscreen.
 struct ItemImageCarouselView: View {
 
     let images: [String]
     @State private var currentIndex: Int = 0
+    @State private var showFullScreen = false
 
     var body: some View {
         if images.isEmpty {
-            ZStack {
-                Color(.systemGray5)
-                Image(systemName: "photo")
-                    .font(.system(size: 40))
-                    .foregroundStyle(Color(.systemGray3))
-            }
-            .frame(maxWidth: .infinity)
-            .frame(height: 260)
-            .clipShape(RoundedRectangle(cornerRadius: 16))
+            Image("default_item_image")
+                .resizable()
+                .scaledToFill()
+                .frame(maxWidth: .infinity)
+                .frame(height: 260)
+                .clipped()
+                .clipShape(RoundedRectangle(cornerRadius: 16))
         } else {
             carouselContent
+                .fullScreenCover(isPresented: $showFullScreen) {
+                    FullScreenImageViewer(images: images, initialIndex: currentIndex)
+                }
         }
     }
 
@@ -38,6 +40,10 @@ struct ItemImageCarouselView: View {
                 ForEach(Array(images.enumerated()), id: \.offset) { index, imageName in
                     carouselImage(for: imageName)
                         .tag(index)
+                        .onTapGesture {
+                            currentIndex = index
+                            showFullScreen = true
+                        }
                 }
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
@@ -110,14 +116,99 @@ struct ItemImageCarouselView: View {
     }
 
     private var imagePlaceholder: some View {
-        ZStack {
-            Color(.systemGray5)
-            Image(systemName: "photo")
-                .font(.system(size: 40))
-                .foregroundStyle(Color(.systemGray3))
+        Image("default_item_image")
+            .resizable()
+            .scaledToFill()
+            .frame(maxWidth: .infinity)
+            .frame(height: 260)
+            .clipped()
+    }
+}
+
+// MARK: - Full Screen Image Viewer
+struct FullScreenImageViewer: View {
+    let images: [String]
+    let initialIndex: Int
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var currentIndex: Int
+
+    init(images: [String], initialIndex: Int) {
+        self.images = images
+        self.initialIndex = initialIndex
+        _currentIndex = State(initialValue: initialIndex)
+    }
+
+    var body: some View {
+        ZStack(alignment: .topTrailing) {
+            Color.black.ignoresSafeArea()
+
+            // ── Swipeable full-screen images
+            TabView(selection: $currentIndex) {
+                ForEach(Array(images.enumerated()), id: \.offset) { index, imageName in
+                    fullImage(for: imageName)
+                        .tag(index)
+                }
+            }
+            .tabViewStyle(.page(indexDisplayMode: .never))
+            .ignoresSafeArea()
+
+            // ── Page counter (e.g. "2 / 5")
+            if images.count > 1 {
+                Text("\(currentIndex + 1) / \(images.count)")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(Color.black.opacity(0.5))
+                    .clipShape(Capsule())
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 56)
+            }
+
+            // ── Close button
+            Button {
+                dismiss()
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundStyle(.white)
+                    .frame(width: 36, height: 36)
+                    .background(Color.black.opacity(0.55))
+                    .clipShape(Circle())
+            }
+            .padding(.top, 56)
+            .padding(.trailing, 20)
         }
-        .frame(maxWidth: .infinity)
-        .frame(height: 260)
+    }
+
+    @ViewBuilder
+    private func fullImage(for imageName: String) -> some View {
+        if let url = URL(string: imageName), url.scheme == "https" || url.scheme == "http" {
+            CachedAsyncImage(url: url) { phase in
+                switch phase {
+                case .success(let image):
+                    image
+                        .resizable()
+                        .scaledToFit()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                case .failure:
+                    Image("default_item_image")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                default:
+                    ProgressView()
+                        .tint(.white)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+            }
+        } else {
+            Image(imageName)
+                .resizable()
+                .scaledToFit()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
     }
 }
 

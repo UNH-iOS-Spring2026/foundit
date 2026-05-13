@@ -11,8 +11,9 @@ struct User: Identifiable, Codable {
     var displayName: String
     var email: String?
     var isAdmin: Bool?
+    var avatarUrl: String?
     var createdAt: Timestamp?
-    var updatedAt: Timestamp?  
+    var updatedAt: Timestamp?
     var nameChangedAt: Timestamp?
     
     // Custom initializer for decoding with defaults
@@ -23,6 +24,7 @@ struct User: Identifiable, Codable {
         displayName = try container.decode(String.self, forKey: .displayName)
         email = try container.decodeIfPresent(String.self, forKey: .email)
         isAdmin = try container.decodeIfPresent(Bool.self, forKey: .isAdmin) ?? false
+        avatarUrl = try container.decodeIfPresent(String.self, forKey: .avatarUrl)
         createdAt = try container.decodeIfPresent(Timestamp.self, forKey: .createdAt)
         updatedAt = try container.decodeIfPresent(Timestamp.self, forKey: .updatedAt)
         nameChangedAt = try container.decodeIfPresent(Timestamp.self, forKey: .nameChangedAt)
@@ -34,6 +36,7 @@ struct User: Identifiable, Codable {
         displayName: String,
         email: String? = nil,
         isAdmin: Bool = false,
+        avatarUrl: String? = nil,
         createdAt: Timestamp? = nil,
         updatedAt: Timestamp? = nil,
         nameChangedAt: Timestamp? = nil
@@ -42,6 +45,7 @@ struct User: Identifiable, Codable {
         self.displayName = displayName
         self.email = email
         self.isAdmin = isAdmin
+        self.avatarUrl = avatarUrl
         self.createdAt = createdAt
         self.updatedAt = updatedAt
         self.nameChangedAt = nameChangedAt

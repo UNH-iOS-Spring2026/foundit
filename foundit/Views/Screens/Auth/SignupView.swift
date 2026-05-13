@@ -35,15 +35,19 @@ struct SignupView: View {
 
 				Spacer().frame(height: 28)
 
-				HStack(spacing: 12) {
-					Image("logo-blue")
-						.resizable()
-						.scaledToFit()
-						.frame(width: 42, height: 42)
-
-					Text("FoundIt")
-						.font(.system(size: 24, weight: .bold))
-						.foregroundColor(.black)
+				HStack {
+					Spacer()
+					VStack(spacing: 8) {
+						Image("found_it_icon")
+							.resizable()
+							.scaledToFit()
+							.frame(width: 90, height: 90)
+							.clipShape(RoundedRectangle(cornerRadius: 20))
+						Text("FoundIt")
+							.font(.system(size: 22, weight: .bold))
+							.foregroundColor(.black)
+					}
+					Spacer()
 				}
 				.padding(.horizontal, 32)
 

@@ -7,12 +7,20 @@
 
 import SwiftUI
 import FirebaseAuth
+import PhotosUI
+import UserNotifications
 
 struct ProfileScreen: View {
 	@EnvironmentObject var authVM: AuthViewModel
 
-	@State private var pushNotificationsEnabled = true
+	@State private var pushNotificationsEnabled =
+        UserDefaults.standard.object(forKey: LocalNotificationManager.enabledPreferenceKey) as? Bool ?? true
+	@State private var systemPermissionDenied = false
+	@State private var showSettingsAlert = false
 	@State private var showLogoutAlert = false
+	@State private var toastMessage: String? = nil
+	@State private var selectedAvatarPhoto: PhotosPickerItem?
+	@State private var isUploadingAvatar = false
 
 	private var userName: String {
 		authVM.currentDisplayName.isEmpty ? "User" : authVM.currentDisplayName
@@ -23,13 +31,62 @@ struct ProfileScreen: View {
 	}
 
 	var body: some View {
+		ZStack(alignment: .bottom) {
 		NavigationStack {
 			VStack(spacing: 0) {
 				VStack(spacing: 8) {
-					Image(systemName: "person.circle.fill")
-						.resizable()
-						.frame(width: 80, height: 80)
-						.foregroundColor(.gray)
+					PhotosPicker(selection: $selectedAvatarPhoto, matching: .images) {
+						ZStack(alignment: .bottomTrailing) {
+							Group {
+								if let urlString = authVM.currentAvatarUrl,
+								   let url = URL(string: urlString) {
+									CachedAsyncImage(url: url) { phase in
+										switch phase {
+										case .success(let image):
+											image.resizable().scaledToFill()
+										default:
+											Image(systemName: "person.circle.fill")
+												.resizable()
+												.foregroundColor(.gray)
+										}
+									}
+									.id(urlString)
+								} else {
+									Image(systemName: "person.circle.fill")
+										.resizable()
+										.foregroundColor(.gray)
+								}
+							}
+							.frame(width: 80, height: 80)
+							.clipShape(Circle())
+
+							ZStack {
+								if isUploadingAvatar {
+									ProgressView()
+										.scaleEffect(0.7)
+								} else {
+									Image(systemName: "camera.fill")
+										.font(.system(size: 11))
+										.foregroundStyle(.white)
+								}
+							}
+							.frame(width: 26, height: 26)
+							.background(Color(red: 0.55, green: 0.60, blue: 0.85))
+							.clipShape(Circle())
+							.overlay(Circle().strokeBorder(Color(.systemBackground), lineWidth: 2))
+						}
+					}
+					.onChange(of: selectedAvatarPhoto) {
+						guard let item = selectedAvatarPhoto else { return }
+						Task {
+							if let data = try? await item.loadTransferable(type: Data.self) {
+								isUploadingAvatar = true
+								await authVM.updateAvatar(imageData: data)
+								isUploadingAvatar = false
+							}
+							selectedAvatarPhoto = nil
+						}
+					}
 
 					Text(userName)
 						.font(.title2)
@@ -44,7 +101,6 @@ struct ProfileScreen: View {
 				Divider()
 
 				VStack(spacing: 0) {
-					ProfileMenuItem(icon: "globe", title: "My post") { MyPostsView() }
 					ProfileMenuItem(icon: "square.and.pencil", title: "Edit Profile") {
 						EditProfileView()
 					}
@@ -55,20 +111,35 @@ struct ProfileScreen: View {
 					}
 
 					HStack {
-						Image(systemName: "bell")
+						Image(systemName: systemPermissionDenied ? "bell.slash" : "bell")
 							.frame(width: 24)
-							.foregroundColor(.primary)
+							.foregroundColor(systemPermissionDenied ? .secondary : .primary)
 
-						Text("Push Notifications")
-							.font(.body)
+						VStack(alignment: .leading, spacing: 2) {
+							Text("Push Notifications")
+								.font(.body)
+								.foregroundColor(systemPermissionDenied ? .secondary : .primary)
+							if systemPermissionDenied {
+								Text("Disabled in Settings")
+									.font(.caption)
+									.foregroundColor(.secondary)
+							}
+						}
 
 						Spacer()
 
 						Toggle("", isOn: $pushNotificationsEnabled)
 							.labelsHidden()
+							.tint(Color(FounditColors.primary))
+							.disabled(systemPermissionDenied)
 					}
 					.padding(.horizontal)
 					.padding(.vertical, 14)
+					.onTapGesture {
+						if systemPermissionDenied {
+							showSettingsAlert = true
+						}
+					}
 
 					Button {
 						showLogoutAlert = true
@@ -92,6 +163,40 @@ struct ProfileScreen: View {
 			}
 			.navigationTitle("Profile")
 			.navigationBarTitleDisplayMode(.inline)
+			.onAppear {
+				UNUserNotificationCenter.current().getNotificationSettings { settings in
+					DispatchQueue.main.async {
+						let denied = settings.authorizationStatus == .denied
+						systemPermissionDenied = denied
+						if denied {
+							pushNotificationsEnabled = false
+						} else {
+							pushNotificationsEnabled = UserDefaults.standard.object(
+								forKey: LocalNotificationManager.enabledPreferenceKey
+							) as? Bool ?? true
+						}
+					}
+				}
+			}
+			.onChange(of: pushNotificationsEnabled) { _, newValue in
+				if newValue, systemPermissionDenied {
+					pushNotificationsEnabled = false
+					showSettingsAlert = true
+					return
+				}
+				UserDefaults.standard.set(newValue, forKey: LocalNotificationManager.enabledPreferenceKey)
+				showToast(newValue ? "Notifications enabled" : "Notifications disabled")
+			}
+			.alert("Notifications Disabled", isPresented: $showSettingsAlert) {
+				Button("Open Settings") {
+					if let url = URL(string: UIApplication.openSettingsURLString) {
+						UIApplication.shared.open(url)
+					}
+				}
+				Button("Cancel", role: .cancel) { }
+			} message: {
+				Text("Notifications are disabled for foundit. Go to Settings to enable them.")
+			}
 			.alert("Logout", isPresented: $showLogoutAlert) {
 				Button("Cancel", role: .cancel) { }
 
@@ -101,6 +206,64 @@ struct ProfileScreen: View {
 			} message: {
 				Text("Are you sure you want to log out?")
 			}
+			.alert("Upload Failed", isPresented: Binding(
+				get: { !authVM.errorMessage.isEmpty },
+				set: { if !$0 { authVM.errorMessage = "" } }
+			)) {
+				Button("OK", role: .cancel) { authVM.errorMessage = "" }
+			} message: {
+				Text(authVM.errorMessage)
+			}
+		}
+
+		// Toast card
+		if toastMessage != nil {
+			HStack(spacing: 14) {
+				ZStack {
+					Circle()
+						.fill(.white.opacity(0.2))
+						.frame(width: 44, height: 44)
+					Image(systemName: pushNotificationsEnabled ? "bell.fill" : "bell.slash.fill")
+						.font(.system(size: 20, weight: .semibold))
+						.foregroundStyle(.white)
+				}
+
+				VStack(alignment: .leading, spacing: 3) {
+					Text(pushNotificationsEnabled ? "Notifications On" : "Notifications Off")
+						.font(.system(size: 15, weight: .semibold))
+						.foregroundStyle(.white)
+					Text(pushNotificationsEnabled
+						 ? "You'll receive alerts for new matches"
+						 : "Banner alerts are paused")
+						.font(.system(size: 13))
+						.foregroundStyle(.white.opacity(0.85))
+				}
+
+				Spacer()
+			}
+			.padding(.horizontal, 16)
+			.padding(.vertical, 14)
+			.background(
+				pushNotificationsEnabled
+					? Color(FounditColors.primary)
+					: Color(.systemGray2),
+				in: RoundedRectangle(cornerRadius: 16)
+			)
+			.shadow(color: .black.opacity(0.15), radius: 12, x: 0, y: 4)
+			.padding(.horizontal, 16)
+			.padding(.bottom, 20)
+			.transition(.move(edge: .bottom).combined(with: .opacity))
+			.zIndex(1)
+		}
+		} // ZStack
+		.animation(.spring(duration: 0.4), value: toastMessage)
+	}
+
+	private func showToast(_ message: String) {
+		toastMessage = message
+		Task {
+			try? await Task.sleep(for: .seconds(2))
+			toastMessage = nil
 		}
 	}
 }

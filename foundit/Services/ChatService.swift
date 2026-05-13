@@ -33,6 +33,33 @@ class ChatService {
         return try snapshot.documents.compactMap { try $0.data(as: Chat.self) }
     }
 
+    /// Finds an existing chat for the given post, or creates one if none exists.
+    /// Used when police mark an item ready for pickup without a prior student message.
+    func findOrCreateChatId(for post: Post) async throws -> String {
+        let postId = post.id ?? ""
+        let snapshot = try await db.collection(collection)
+            .whereField("postId", isEqualTo: postId)
+            .limit(to: 1)
+            .getDocuments()
+        if let existing = snapshot.documents.first {
+            return existing.documentID
+        }
+        let now = Timestamp()
+        let chat = Chat(
+            postId: postId,
+            userId: post.createdBy,
+            policeId: "campus-police-001",
+            itemTitle: post.title,
+            itemImageUrl: post.primaryImageUrl,
+            lastMessage: "",
+            lastMessageAt: now,
+            status: .active,
+            createdAt: now,
+            updatedAt: now
+        )
+        return try await createChat(chat)
+    }
+
     /// Fetches all chats for the police shared inbox (all conversations).
     func fetchAllPoliceChats() async throws -> [Chat] {
         let snapshot = try await db.collection(collection)
@@ -86,7 +113,14 @@ class ChatService {
             "updatedAt": now
         ], forDocument: chatRef)
 
-        // 2. Update existing item, or provision a new one.
+        // 2. Post status
+        let postRef = db.collection("posts").document(postId)
+        batch.updateData([
+            "status": PostStatus.waitingForPickup.rawValue,
+            "updatedAt": now
+        ], forDocument: postRef)
+
+        // 3. Update existing item, or provision a new one.
         let itemSnapshot = try await db.collection("items")
             .whereField("sourcePostId", isEqualTo: postId)
             .limit(to: 1)
@@ -110,7 +144,7 @@ class ChatService {
             try batch.setData(from: newItem, forDocument: itemRef)
         }
 
-        // Post system message
+        // 4. Post system message
         let msgRef = db.collection(collection)
             .document(chatId)
             .collection("messages")
@@ -120,6 +154,44 @@ class ChatService {
             senderRole: .system,
             type: .system,
             text: "This item has been marked as ready for pickup at the police station.",
+            photoUrl: nil,
+            sentAt: now
+        )
+        try batch.setData(from: systemMessage, forDocument: msgRef)
+
+        try await batch.commit()
+    }
+
+    func markReturned(chatId: String, postId: String) async throws {
+        let batch = db.batch()
+        let now = Timestamp()
+
+        // 1. Chat status + inbox preview
+        let chatRef = db.collection(collection).document(chatId)
+        batch.updateData([
+            "status": Chat.Status.closed.rawValue,
+            "lastMessage": "Item has been returned to owner. Case closed.",
+            "lastMessageAt": now,
+            "updatedAt": now
+        ], forDocument: chatRef)
+
+        // 2. Post status
+        let postRef = db.collection("posts").document(postId)
+        batch.updateData([
+            "status": PostStatus.returned.rawValue,
+            "updatedAt": now
+        ], forDocument: postRef)
+
+        // 3. System message
+        let msgRef = db.collection(collection)
+            .document(chatId)
+            .collection("messages")
+            .document()
+        let systemMessage = Message(
+            senderId: "system",
+            senderRole: .system,
+            type: .system,
+            text: "Item has been returned to owner. Case closed.",
             photoUrl: nil,
             sentAt: now
         )

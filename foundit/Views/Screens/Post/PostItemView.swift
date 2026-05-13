@@ -7,7 +7,37 @@
 import SwiftUI
 import PhotosUI
 import CoreLocation
+import MapKit
 import FirebaseFirestore
+import Combine
+
+// MARK: - Location Search Completer
+private class LocationSearchCompleter: NSObject, ObservableObject, MKLocalSearchCompleterDelegate {
+    @Published var suggestions: [MKLocalSearchCompletion] = []
+    private let completer = MKLocalSearchCompleter()
+
+    override init() {
+        super.init()
+        completer.delegate = self
+        completer.resultTypes = [.address, .pointOfInterest]
+    }
+
+    func search(query: String) {
+        if query.trimmingCharacters(in: .whitespaces).isEmpty {
+            suggestions = []
+        } else {
+            completer.queryFragment = query
+        }
+    }
+
+    func completerDidUpdateResults(_ completer: MKLocalSearchCompleter) {
+        suggestions = Array(completer.results.prefix(5))
+    }
+
+    func completer(_ completer: MKLocalSearchCompleter, didFailWithError error: Error) {
+        suggestions = []
+    }
+}
 
 // MARK: - PostItemView
 struct PostItemView: View {
@@ -26,8 +56,8 @@ struct PostItemView: View {
     @State private var selectedCategory: String = "Books"
     @State private var selectedDate: Date = Date()
     @State private var showDatePicker: Bool = false
-    @State private var selectedImage: UIImage? = nil
-    @State private var photoPickerItem: PhotosPickerItem? = nil
+    @State private var selectedImages: [UIImage] = []
+    @State private var photoPickerItems: [PhotosPickerItem] = []
     @State private var title: String = ""
     @State private var descriptionText: String = ""
     @State private var mobileNumber: String = ""
@@ -35,6 +65,8 @@ struct PostItemView: View {
     @State private var hideContactDetails: Bool = false
     @State private var showLocationPicker: Bool = false
     @State private var selectedCoordinate: CLLocationCoordinate2D? = nil
+    @StateObject private var locationCompleter = LocationSearchCompleter()
+    @FocusState private var locationFieldFocused: Bool
     @State private var existingPhotoUrls: [String] = []
     @State private var showSuccessAlert = false
     @State private var showErrorAlert = false
@@ -136,57 +168,118 @@ struct PostItemView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 14))
                 .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
                 
-                FormSectionLabel(title: "Upload Image")
-                
-                PhotosPicker(
-                    selection: $photoPickerItem,
-                    matching: .images
-                ) {
-                    ZStack {
-                        if let image = selectedImage {
-                            // ── Selected image preview ─────────────────
-                            ZStack(alignment: .topTrailing) {
-                                Image(uiImage: image)
-                                    .resizable()
-                                    .scaledToFill()
-                                    .frame(maxWidth: .infinity)
-                                    .frame(height: 200)
-                                    .clipShape(RoundedRectangle(cornerRadius: 14))
-                                
-                                // Tap to change hint
-                                Text("Tap to change")
-                                    .font(.system(size: 12, weight: .medium))
-                                    .foregroundStyle(.white)
-                                    .padding(.horizontal, 10)
-                                    .padding(.vertical, 5)
-                                    .background(Color.black.opacity(0.45))
-                                    .clipShape(Capsule())
-                                    .padding(10)
-                            }
-                        } else {
-                            // Empty upload placeholder
-                            VStack(spacing: 10) {
-                                Image(systemName: "photo.badge.plus")
-                                    .font(.system(size: 32))
-                                    .foregroundStyle(Color(.systemGray3))
-                                Text("Upload Image")
-                                    .font(.system(size: 16, weight: .semibold))
-                                    .foregroundStyle(Color(.systemGray2))
-                            }
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 200)
-                            .background(Color(.systemBackground))
-                            .clipShape(RoundedRectangle(cornerRadius: 14))
-                            .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
+                FormSectionLabel(title: "Upload Images (up to \(maxImages))")
+
+                Group {
+                if totalImageCount == 0 {
+                    // ── Empty state: full-width add button ───────────
+                    PhotosPicker(
+                        selection: $photoPickerItems,
+                        maxSelectionCount: maxImages,
+                        matching: .images
+                    ) {
+                        VStack(spacing: 10) {
+                            Image(systemName: "photo.badge.plus")
+                                .font(.system(size: 32))
+                                .foregroundStyle(Color(.systemGray3))
+                            Text("Upload Images")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundStyle(Color(.systemGray2))
                         }
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 160)
+                        .background(Color(.systemBackground))
+                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                        .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
+                    }
+                } else {
+                    // ── Thumbnail strip ──────────────────────────────
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 12) {
+                            // Existing URLs (edit mode)
+                            ForEach(Array(existingPhotoUrls.enumerated()), id: \.offset) { index, urlString in
+                                ZStack(alignment: .topTrailing) {
+                                    PhaseCachedAsyncImage(url: URL(string: urlString)) { phase in
+                                        switch phase {
+                                        case .success(let image):
+                                            image.resizable().scaledToFill()
+                                        default:
+                                            Color(.systemGray5)
+                                        }
+                                    }
+                                    .frame(width: 90, height: 90)
+                                    .clipShape(RoundedRectangle(cornerRadius: 10))
+
+                                    Button {
+                                        existingPhotoUrls.remove(at: index)
+                                    } label: {
+                                        Image(systemName: "xmark.circle.fill")
+                                            .font(.system(size: 20))
+                                            .foregroundStyle(.white)
+                                            .background(Color.black.opacity(0.5), in: Circle())
+                                    }
+                                    .offset(x: 6, y: -6)
+                                }
+                            }
+
+                            // Newly selected local images
+                            ForEach(Array(selectedImages.enumerated()), id: \.offset) { index, img in
+                                ZStack(alignment: .topTrailing) {
+                                    Image(uiImage: img)
+                                        .resizable()
+                                        .scaledToFill()
+                                        .frame(width: 90, height: 90)
+                                        .clipShape(RoundedRectangle(cornerRadius: 10))
+
+                                    Button {
+                                        selectedImages.remove(at: index)
+                                    } label: {
+                                        Image(systemName: "xmark.circle.fill")
+                                            .font(.system(size: 20))
+                                            .foregroundStyle(.white)
+                                            .background(Color.black.opacity(0.5), in: Circle())
+                                    }
+                                    .offset(x: 6, y: -6)
+                                }
+                            }
+
+                            // Add more tile
+                            if totalImageCount < maxImages {
+                                PhotosPicker(
+                                    selection: $photoPickerItems,
+                                    maxSelectionCount: maxImages - totalImageCount,
+                                    matching: .images
+                                ) {
+                                    VStack(spacing: 6) {
+                                        Image(systemName: "plus")
+                                            .font(.system(size: 22, weight: .medium))
+                                        Text("Add")
+                                            .font(.system(size: 12, weight: .medium))
+                                    }
+                                    .foregroundStyle(Color(red: 0.55, green: 0.60, blue: 0.85))
+                                    .frame(width: 90, height: 90)
+                                    .background(Color(red: 0.55, green: 0.60, blue: 0.85).opacity(0.08))
+                                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 10)
+                                            .strokeBorder(Color(red: 0.55, green: 0.60, blue: 0.85).opacity(0.4), style: StrokeStyle(lineWidth: 1.5, dash: [5]))
+                                    )
+                                }
+                            }
+                        }
+                        .padding(.vertical, 4)
                     }
                 }
-                .onChange(of: photoPickerItem) {
+                } // Group
+                .onChange(of: photoPickerItems) {
                     Task {
-                        if let data = try? await photoPickerItem?.loadTransferable(type: Data.self),
-                           let image = UIImage(data: data) {
-                            selectedImage = image
+                        for item in photoPickerItems {
+                            if let data = try? await item.loadTransferable(type: Data.self),
+                               let image = UIImage(data: data) {
+                                selectedImages.append(image)
+                            }
                         }
+                        photoPickerItems = []
                     }
                 }
                 FormSectionLabel(title: "Title")
@@ -221,31 +314,99 @@ struct PostItemView: View {
                 .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
                 
                 
-                FormSectionLabel(title: "Mobile Number")
-                TextField("", text: $mobileNumber)
-                    .font(.system(size: 16))
-                    .keyboardType(.phonePad)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 16)
-                    .background(Color(.systemBackground))
-                    .clipShape(RoundedRectangle(cornerRadius: 14))
-                    .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
-                
-                FormSectionLabel(title: "Location")
-                HStack {
-                    TextField("", text: $location)
+                FormSectionLabel(title: "Mobile Number (optional)")
+                VStack(alignment: .leading, spacing: 4) {
+                    TextField("", text: $mobileNumber)
                         .font(.system(size: 16))
-                    Spacer()
-                    Button {
-                        showLocationPicker = true
-                    } label: {
-                        Image(systemName: "mappin.circle.fill")
-                            .font(.system(size: 20))
-                            .foregroundStyle(.pink)
+                        .keyboardType(.phonePad)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 16)
+                        .background(Color(.systemBackground))
+                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                        .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 14)
+                                .strokeBorder(!isPhoneValid ? Color.red.opacity(0.6) : Color.clear, lineWidth: 1.5)
+                        )
+
+                    if !isPhoneValid {
+                        Text("Please enter a valid phone number (7–15 digits).")
+                            .font(.system(size: 12))
+                            .foregroundStyle(.red)
+                            .padding(.horizontal, 4)
                     }
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 16)
+                
+                FormSectionLabel(title: "Location")
+                VStack(spacing: 0) {
+                    HStack(spacing: 10) {
+                        Image(systemName: "magnifyingglass")
+                            .foregroundStyle(.secondary)
+                        TextField("Search location…", text: $location)
+                            .font(.system(size: 16))
+                            .focused($locationFieldFocused)
+                            .onChange(of: location) { _, newValue in
+                                locationCompleter.search(query: newValue)
+                            }
+                        if !location.isEmpty {
+                            Button {
+                                location = ""
+                                selectedCoordinate = nil
+                                locationCompleter.suggestions = []
+                            } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundStyle(Color(.systemGray3))
+                            }
+                        }
+                        Button {
+                            locationFieldFocused = false
+                            showLocationPicker = true
+                        } label: {
+                            Image(systemName: "mappin.circle.fill")
+                                .font(.system(size: 20))
+                                .foregroundStyle(.pink)
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 14)
+
+                    // Autocomplete suggestions
+                    let suggestions = locationCompleter.suggestions
+                    if locationFieldFocused && !suggestions.isEmpty {
+                        Divider()
+                        ForEach(suggestions, id: \.self) { suggestion in
+                            Button {
+                                selectLocationSuggestion(suggestion)
+                            } label: {
+                                HStack(spacing: 12) {
+                                    Image(systemName: "mappin")
+                                        .font(.system(size: 13))
+                                        .foregroundStyle(Color(red: 0.55, green: 0.60, blue: 0.85))
+                                        .frame(width: 20)
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(suggestion.title)
+                                            .font(.system(size: 14, weight: .medium))
+                                            .foregroundStyle(.primary)
+                                            .lineLimit(1)
+                                        if !suggestion.subtitle.isEmpty {
+                                            Text(suggestion.subtitle)
+                                                .font(.system(size: 12))
+                                                .foregroundStyle(.secondary)
+                                                .lineLimit(1)
+                                        }
+                                    }
+                                    Spacer()
+                                }
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 10)
+                            }
+                            .buttonStyle(.plain)
+                            if suggestion != suggestions.last {
+                                Divider().padding(.horizontal, 16)
+                            }
+                        }
+                    }
+                }
                 .background(Color(.systemBackground))
                 .clipShape(RoundedRectangle(cornerRadius: 14))
                 .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
@@ -351,17 +512,43 @@ struct PostItemView: View {
     }
 
     // MARK: - Helper Functions
+    private let maxImages = 5
+
+    private var totalImageCount: Int {
+        existingPhotoUrls.count + selectedImages.count
+    }
+
+    private var isPhoneValid: Bool {
+        let digits = mobileNumber.filter { $0.isNumber }
+        return mobileNumber.trimmingCharacters(in: .whitespaces).isEmpty || (digits.count >= 7 && digits.count <= 15)
+    }
+
     private var isFormValid: Bool {
-        guard let type = selectedType,
+        guard selectedType != nil,
               !title.trimmingCharacters(in: .whitespaces).isEmpty,
               !descriptionText.trimmingCharacters(in: .whitespaces).isEmpty,
               !location.trimmingCharacters(in: .whitespaces).isEmpty,
-              let _ = selectedCoordinate else {
+              selectedCoordinate != nil,
+              isPhoneValid else {
             return false
         }
         return true
     }
     
+    private func selectLocationSuggestion(_ suggestion: MKLocalSearchCompletion) {
+        locationFieldFocused = false
+        locationCompleter.suggestions = []
+        let parts = [suggestion.title, suggestion.subtitle].filter { !$0.isEmpty }
+        location = parts.joined(separator: ", ")
+        Task {
+            let request = MKLocalSearch.Request(completion: suggestion)
+            if let response = try? await MKLocalSearch(request: request).start(),
+               let placemark = response.mapItems.first?.placemark {
+                selectedCoordinate = placemark.coordinate
+            }
+        }
+    }
+
     private func loadPostData() {
         guard let post = postToEdit else { return }
         
@@ -376,6 +563,8 @@ struct PostItemView: View {
         )
         existingPhotoUrls = post.photoUrls
         selectedDate = post.createdAt.dateValue()
+        mobileNumber = post.mobileNumber ?? ""
+        hideContactDetails = post.hideContactDetails
     }
     
     private func submitReport() {
@@ -387,16 +576,17 @@ struct PostItemView: View {
         postViewModel.didSucceed = false
 
         Task {
-            var photoData: [Data] = []
-            if let image = selectedImage,
-               let data = image.jpegData(compressionQuality: 0.7) {
-                photoData.append(data)
+            let photoData: [Data] = selectedImages.compactMap {
+                $0.jpegData(compressionQuality: 0.7)
             }
 
             let geoPoint = GeoPoint(
                 latitude: coordinate.latitude,
                 longitude: coordinate.longitude
             )
+
+            let trimmedPhone = mobileNumber.trimmingCharacters(in: .whitespaces)
+            let phoneToSave: String? = trimmedPhone.isEmpty ? nil : trimmedPhone
 
             if isEditMode, let postId = postToEdit?.id {
                 await postViewModel.updatePost(
@@ -409,7 +599,9 @@ struct PostItemView: View {
                     locationText: location,
                     photoData: photoData,
                     existingPhotoUrls: existingPhotoUrls,
-                    reporterInfo: postToEdit?.reporterInfo  // Preserve reporter info
+                    reporterInfo: postToEdit?.reporterInfo,
+                    mobileNumber: phoneToSave,
+                    hideContactDetails: hideContactDetails
                 )
             } else {
                 await postViewModel.createPost(
@@ -419,7 +611,9 @@ struct PostItemView: View {
                     type: type,
                     location: geoPoint,
                     locationText: location,
-                    photoData: photoData
+                    photoData: photoData,
+                    mobileNumber: phoneToSave,
+                    hideContactDetails: hideContactDetails
                 )
             }
 

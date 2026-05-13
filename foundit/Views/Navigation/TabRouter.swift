@@ -11,5 +11,6 @@ enum AppTab: Hashable {
 @MainActor
 final class TabRouter: ObservableObject {
     @Published var selectedTab: AppTab = .home
+    // Set to a postId to trigger deep-link navigation to PostDetailView
+    @Published var pendingPostId: String?
 }
-

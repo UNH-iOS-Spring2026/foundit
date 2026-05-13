@@ -21,7 +21,8 @@ enum PostType: String, Codable {
 enum PostStatus: String, Codable {
     case open
     case matched
-    case closed
+    case waitingForPickup
+    case returned
 }
 
 // MARK: - Reporter Info
@@ -48,6 +49,8 @@ struct Post: Identifiable, Codable, Hashable {
     var status: PostStatus
     var createdBy: String  // User ID
     var reporterInfo: Reporter?  // Optional reporter details
+    var mobileNumber: String?
+    var hideContactDetails: Bool
     var createdAt: Timestamp
     var updatedAt: Timestamp
     
@@ -70,6 +73,8 @@ struct Post: Identifiable, Codable, Hashable {
         status = try container.decode(PostStatus.self, forKey: .status)
         createdBy = try container.decode(String.self, forKey: .createdBy)
         reporterInfo = try container.decodeIfPresent(Reporter.self, forKey: .reporterInfo)
+        mobileNumber = try container.decodeIfPresent(String.self, forKey: .mobileNumber)
+        hideContactDetails = try container.decodeIfPresent(Bool.self, forKey: .hideContactDetails) ?? false
         createdAt = try container.decode(Timestamp.self, forKey: .createdAt)
         updatedAt = try container.decode(Timestamp.self, forKey: .updatedAt)
     }
@@ -87,6 +92,8 @@ struct Post: Identifiable, Codable, Hashable {
         status: PostStatus,
         createdBy: String,
         reporterInfo: Reporter? = nil,
+        mobileNumber: String? = nil,
+        hideContactDetails: Bool = false,
         createdAt: Timestamp,
         updatedAt: Timestamp
     ) {
@@ -101,6 +108,8 @@ struct Post: Identifiable, Codable, Hashable {
         self.status = status
         self.createdBy = createdBy
         self.reporterInfo = reporterInfo
+        self.mobileNumber = mobileNumber
+        self.hideContactDetails = hideContactDetails
         self.createdAt = createdAt
         self.updatedAt = updatedAt
     }
@@ -117,6 +126,8 @@ struct Post: Identifiable, Codable, Hashable {
         case status
         case createdBy
         case reporterInfo
+        case mobileNumber
+        case hideContactDetails
         case createdAt
         case updatedAt
     }

@@ -20,7 +20,7 @@ class ChatViewModel: ObservableObject {
     private let chatService = ChatService()
     private var cancellables = Set<AnyCancellable>()
 
-    func fetchConversations(userId: String = AppConfig.placeholderUserId) async {
+    func fetchConversations(userId: String = AppConfig.currentUserId) async {
         isLoading = true
         errorMessage = nil
         do {
@@ -121,7 +121,7 @@ class ChatViewModel: ObservableObject {
 
     func startChat(for post: Post) async -> String? {
         do {
-            let userId = AppConfig.placeholderUserId
+            let userId = AppConfig.currentUserId
             if let existing = try await chatService.fetchChat(forPostId: post.id ?? "", userId: userId) {
                 return existing.id
             }
@@ -154,8 +154,29 @@ class ChatViewModel: ObservableObject {
         }
     }
 
+    func markReturned(chatId: String, postId: String) async {
+        do {
+            try await chatService.markReturned(chatId: chatId, postId: postId)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func markReadyForPickupFromPost(_ post: Post) async -> String? {
+        do {
+            let chatId = try await chatService.findOrCreateChatId(for: post)
+            try await chatService.markReadyForPickup(chatId: chatId, postId: post.id ?? "")
+            return chatId
+        } catch {
+            errorMessage = error.localizedDescription
+            return nil
+        }
+    }
+
     func stopListening() {
         cancellables.removeAll()
+        messages = []
+        chatStatus = nil
     }
 }
 

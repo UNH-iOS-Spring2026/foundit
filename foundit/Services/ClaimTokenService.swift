@@ -115,7 +115,15 @@ class ClaimTokenService {
         }
         batch.updateData(itemUpdate, forDocument: itemRef)
 
-        // 3. Close the chat + post a system message if a chat exists for this post/user
+        // 3. Flip the post to returned so the home feed and post detail
+        // reflect the claim (the public-facing record lives in `posts`).
+        let postRef = db.collection("posts").document(token.postId)
+        batch.updateData([
+            "status": PostStatus.returned.rawValue,
+            "updatedAt": now
+        ], forDocument: postRef)
+
+        // 4. Close the chat + post a system message if a chat exists for this post/user
         var resolvedChatId: String?
         let chatSnap = try await db.collection("chats")
             .whereField("postId", isEqualTo: token.postId)

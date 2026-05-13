@@ -36,7 +36,7 @@ class PostViewModel: ObservableObject {
         isLoading = true
         errorMessage = nil
         do {
-            let resolvedUserId = userId ?? AppConfig.placeholderUserId
+            let resolvedUserId = userId ?? AppConfig.currentUserId
             userPosts = try await postService.fetchPostsByUser(userId: resolvedUserId)
         } catch {
             errorMessage = error.localizedDescription
@@ -66,6 +66,8 @@ class PostViewModel: ObservableObject {
         location: GeoPoint,
         locationText: String,
         photoData: [Data] = [],
+        mobileNumber: String? = nil,
+        hideContactDetails: Bool = false,
         createdBy: String? = nil
     ) async {
         isLoading = true
@@ -74,21 +76,24 @@ class PostViewModel: ObservableObject {
         do {
             let postId = UUID().uuidString
             var photoUrls: [String] = []
-            
-            // Try to upload images, but don't fail if it doesn't work
+
             if !photoData.isEmpty {
+                print("[PostViewModel] Uploading \(photoData.count) image(s) for postId: \(postId)")
                 do {
                     photoUrls = try await storageService.uploadImages(dataArray: photoData, postId: postId)
+                    print("[PostViewModel] Upload succeeded — \(photoUrls.count) URL(s): \(photoUrls)")
                 } catch {
-                    // Continue without images instead of failing
-                    errorMessage = "Post created, but image upload failed"
+                    print("[PostViewModel] Upload FAILED: \(error)")
+                    errorMessage = error.localizedDescription
+                    isLoading = false
+                    return
                 }
             }
 
             let now = Timestamp()
             
             // Resolve the user ID
-            let resolvedUserId = createdBy ?? AppConfig.placeholderUserId
+            let resolvedUserId = createdBy ?? AppConfig.currentUserId
             
             // Fetch reporter information
             var reporterInfo: Reporter? = nil
@@ -113,6 +118,8 @@ class PostViewModel: ObservableObject {
                 status: .open,
                 createdBy: resolvedUserId,
                 reporterInfo: reporterInfo,
+                mobileNumber: mobileNumber,
+                hideContactDetails: hideContactDetails,
                 createdAt: now,
                 updatedAt: now
             )
@@ -124,7 +131,7 @@ class PostViewModel: ObservableObject {
             post.id = firebaseDocumentId
             
             // IMPORTANT: Find similar posts and notify users
-            let similarPosts = try await postService.fetchSimilarPosts(to: post, limit: 10)
+            let similarPosts = try await postService.fetchCandidatePostsForNotification(matching: post)
             await notificationService.notifyUsersOfSimilarPost(newPost: post, similarPosts: similarPosts)
             
             await fetchPosts()
@@ -169,7 +176,9 @@ class PostViewModel: ObservableObject {
         locationText: String,
         photoData: [Data] = [],
         existingPhotoUrls: [String] = [],
-        reporterInfo: Reporter? = nil
+        reporterInfo: Reporter? = nil,
+        mobileNumber: String? = nil,
+        hideContactDetails: Bool = false
     ) async {
         isLoading = true
         errorMessage = nil
@@ -197,8 +206,10 @@ class PostViewModel: ObservableObject {
                 lastSeenLocation: location,
                 lastSeenLocationText: locationText,
                 status: .open,
-                createdBy: AppConfig.placeholderUserId,
-                reporterInfo: reporterInfo,  // Preserve reporter info
+                createdBy: AppConfig.currentUserId,
+                reporterInfo: reporterInfo,
+                mobileNumber: mobileNumber,
+                hideContactDetails: hideContactDetails,
                 createdAt: Timestamp(), // This will be ignored in merge
                 updatedAt: Timestamp()
             )
