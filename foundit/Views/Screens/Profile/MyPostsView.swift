@@ -307,7 +307,25 @@ private struct MyPostsFilterPill: View {
 
 private struct MyPostCardView: View {
     let item: Post
-    
+
+    private var badgeLabel: String {
+        switch item.status {
+        case .returned:         return "Returned"
+        case .waitingForPickup: return "Ready"
+        case .matched:          return "Matched"
+        case .open:             return item.type.label
+        }
+    }
+
+    private var badgeColor: Color {
+        switch item.status {
+        case .returned:         return .gray
+        case .waitingForPickup: return .orange
+        case .matched:          return .blue
+        case .open:             return item.type == .lost ? .pink : .green
+        }
+    }
+
     var body: some View {
         HStack(alignment: .top, spacing: 14) {
             // Thumbnail Image
@@ -323,16 +341,14 @@ private struct MyPostCardView: View {
             VStack(alignment: .leading, spacing: 7) {
                 // Status Badge (menu is now external)
                 HStack(alignment: .center) {
-                    Text(item.type.label)
+                    Text(badgeLabel)
                         .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(item.type == .lost ? .pink : .green)
+                        .foregroundStyle(badgeColor)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 3)
-                        .background(
-                            (item.type == .lost ? Color.pink : Color.green).opacity(0.12)
-                        )
+                        .background(badgeColor.opacity(0.12))
                         .clipShape(Capsule())
-                    
+
                     Spacer()
                 }
                 

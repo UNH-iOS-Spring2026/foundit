@@ -25,7 +25,7 @@ struct ItemCardView: View {
                     .overlay(itemImage)
                     .clipped()
 
-                StatusBadgeView(type: item.type)
+                StatusBadgeView(type: item.type, status: item.status)
                     .padding(8)
             }
 
@@ -114,16 +114,28 @@ struct ItemCardView: View {
 struct StatusBadgeView: View {
 
     let type: PostType
+    var status: PostStatus = .open
+
+    private var label: String {
+        switch status {
+        case .returned:         return "Returned"
+        case .waitingForPickup: return "Ready"
+        case .matched:          return "Matched"
+        case .open:             return type.label
+        }
+    }
 
     private var badgeColor: Color {
-        switch type {
-        case .lost:  return .pink
-        case .found: return .green
+        switch status {
+        case .returned:         return .gray
+        case .waitingForPickup: return .orange
+        case .matched:          return .blue
+        case .open:             return type == .lost ? .pink : .green
         }
     }
 
     var body: some View {
-        Text(type.label)
+        Text(label)
             .font(.system(size: 12, weight: .semibold))
             .foregroundStyle(badgeColor)
             .padding(.horizontal, 10)
