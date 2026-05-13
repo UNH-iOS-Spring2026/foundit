@@ -2,10 +2,17 @@
 //  ClaimTokenService.swift
 //  foundit
 //
+//  Written by Rohan Poudel, assisted by Claude.
+//
 //  Talks to the `claimTokens` Firestore collection.
 //  Handles creating a token (police side), parsing the scanned QR,
 //  redeeming the token atomically (student side), and a real-time
 //  listener the police uses to know when the student has scanned.
+//
+//  Redemption is the only place in the app where four documents move
+//  together (token, item, post, chat). They have to commit as one
+//  batch — partial state would leave an item "returned" while the
+//  chat stays open, or vice versa.
 //
 
 import Foundation
@@ -31,6 +38,8 @@ enum ClaimTokenError: LocalizedError {
     }
 }
 
+/// Thin wrapper around the `claimTokens` collection plus the cross-document
+/// updates that have to fire when a token is redeemed.
 class ClaimTokenService {
     private let db = Firestore.firestore()
     private let collection = "claimTokens"
@@ -79,8 +88,14 @@ class ClaimTokenService {
         return nonce
     }
 
-    /// In a single batch, marks the token consumed and flips the linked item to `.returned`.
-    /// Also closes the matching chat and posts a system message if a chat exists.
+    /// Atomically completes a claim. In one batched write this:
+    ///   1. Marks the token consumed (records who scanned and when).
+    ///   2. Flips the linked `items/<itemId>` doc to `.returned`.
+    ///   3. Flips the linked `posts/<postId>` doc to `.returned`.
+    ///   4. Closes the student↔police chat for this post (if any) and
+    ///      drops a system message into the thread.
+    /// Throws `alreadyConsumed`, `expired`, or `itemNotFound` before the
+    /// batch is committed if any precondition fails.
     /// Returns the `chatId` of the closed chat (if any) so callers can navigate to it.
     @discardableResult
     func redeemToken(
@@ -156,7 +171,9 @@ class ClaimTokenService {
     }
 
     /// Real-time listener: fires when the token at `nonce` is consumed.
-    /// Returns a handle so callers can detach.
+    /// The police phone uses this while the QR drawer is open so it can
+    /// auto-dismiss and jump into the chat the moment the student scans.
+    /// Returns a handle so callers can detach when the drawer closes.
     func observeConsumption(
         nonce: String,
         onConsumed: @escaping (_ consumedByUserId: String) -> Void

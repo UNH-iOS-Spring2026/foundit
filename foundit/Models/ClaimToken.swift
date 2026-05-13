@@ -2,11 +2,17 @@
 //  ClaimToken.swift
 //  foundit
 //
+//  Written by Rohan Poudel, assisted by Claude.
+//
 //  Firestore record that backs a single QR claim.
 //  Written by the police phone when generating a QR, consumed by the
 //  student's phone when they scan it. Storing it server-side is what
 //  makes the QR verifiable — the scanner looks up this document to
 //  confirm the code is real, unexpired, and unused.
+//
+//  Companion files: `QRClaimPayload` (what's encoded in the QR image),
+//  `ClaimTokenService` (CRUD + atomic redemption), `QRScannerView` and
+//  `QRCodeDrawerView` (the two ends of the user-facing flow).
 //
 
 import Foundation

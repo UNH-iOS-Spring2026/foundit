@@ -3,9 +3,13 @@
 //  foundit
 //
 //  Created by Divya Panthi on 17/03/2026.
+//  Documentation pass by Rohan Poudel, assisted by Claude.
 //
 //  This file is kept for reference only.
 //  All models have been migrated to Post.swift to work with Firebase backend.
+//  The body below is commented out; nothing in it is reachable from the
+//  current build. Keeping it lets us cross-check the old local-only model
+//  shape against the current Firestore-backed `Post` if anything regresses.
 
 /*
 import Foundation

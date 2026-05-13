@@ -2,9 +2,17 @@
 //  QRScannerView.swift
 //  foundit
 //
+//  Written by Rohan Poudel, assisted by Claude.
+//
 //  Full-screen camera scanner for the claim flow. Uses AVFoundation to
 //  read QR codes and presents a result sheet that verifies + redeems
 //  the scanned code against Firestore.
+//
+//  Three pieces live in this file: the SwiftUI screen (`QRScannerView`),
+//  the result sheet that runs the verify/redeem pipeline (`QRResultSheet`),
+//  and the UIViewController + AVFoundation glue (`QRCameraPreview`,
+//  `QRScannerController`). The scanner is paired with `QRCodeDrawerView`
+//  on the police side and `ClaimTokenService` on the data layer.
 //
 
 import SwiftUI
@@ -325,6 +333,8 @@ struct QRResultSheet: View {
 
 // MARK: - Scanner Corner Accents
 
+/// Decorative L-shaped corner markers drawn over the scanner frame so the
+/// viewfinder reads as a "scanner" rather than just an outlined rectangle.
 struct ScannerCornersShape: Shape {
     func path(in rect: CGRect) -> Path {
         let cornerLength: CGFloat = 40
@@ -365,6 +375,8 @@ struct ScannerCornersShape: Shape {
 
 // MARK: - Camera Preview (AVFoundation)
 
+/// SwiftUI wrapper around `QRScannerController`. Bridges the @State
+/// `scannedCode` / `isTorchOn` bindings into the UIKit camera controller.
 struct QRCameraPreview: UIViewControllerRepresentable {
     @Binding var scannedCode: String?
     @Binding var isTorchOn: Bool
@@ -398,10 +410,15 @@ struct QRCameraPreview: UIViewControllerRepresentable {
 
 // MARK: - AVFoundation Scanner Controller
 
+/// Notifies the SwiftUI layer when the AV pipeline reads a QR.
 protocol QRScannerControllerDelegate: AnyObject {
     func didFindCode(_ code: String)
 }
 
+/// UIKit controller that owns the AVCaptureSession.
+/// Set up: video input → metadata output filtered to `.qr` → preview layer.
+/// After a successful read the session is paused for 2s to avoid re-firing
+/// while the result sheet animates in.
 class QRScannerController: UIViewController, AVCaptureMetadataOutputObjectsDelegate {
     weak var delegate: QRScannerControllerDelegate?
     private var captureSession: AVCaptureSession?
@@ -448,6 +465,7 @@ class QRScannerController: UIViewController, AVCaptureMetadataOutputObjectsDeleg
         }
     }
 
+    /// Toggle the device flashlight. Silent no-op on devices without a torch.
     func setTorch(on: Bool) {
         guard let device = AVCaptureDevice.default(for: .video),
               device.hasTorch else { return }

@@ -1,12 +1,22 @@
 //
 //  Notification.swift
 //  foundit
+//
+//  Written by Rohan Poudel, assisted by Claude.
+//
+//  In-app notification record stored in the `notifications` collection.
+//  Powers the bell icon and notification screen — covers similar-post
+//  matches, new messages, status changes, and match confirmations.
+//
 
 
 import Foundation
 import FirebaseFirestore
 
 // MARK: - Notification Type
+
+/// What triggered the notification. Drives the icon, copy template, and
+/// the destination screen when the user taps the row.
 enum NotificationType: String, Codable {
     case similarPost = "similar_post"
     case message = "message"
@@ -15,6 +25,9 @@ enum NotificationType: String, Codable {
 }
 
 // MARK: - Notification Model
+
+/// A single notification delivered to one user. The collection is queried
+/// by `recipientId` and ordered by `timestamp` desc for the notification feed.
 struct AppNotification: Identifiable, Codable {
     @DocumentID var id: String?
     var type: NotificationType
@@ -27,7 +40,8 @@ struct AppNotification: Identifiable, Codable {
     var timestamp: Timestamp
     var isRead: Bool
     
-    // Custom decoder to handle missing fields
+    // Custom decoder: tolerates older documents missing `isRead` (defaults to false)
+    // so the notification feed doesn't blow up on legacy data.
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         
@@ -82,6 +96,9 @@ struct AppNotification: Identifiable, Codable {
 }
 
 // MARK: - Grouped Notifications
+
+/// One bucket of notifications under a date heading ("Today", "Yesterday",
+/// "This Week", or a formatted month/day). Used to render section headers.
 struct NotificationSection: Identifiable {
     let id = UUID()
     let title: String
@@ -103,7 +120,9 @@ extension AppNotification {
         return formatter.string(from: timestamp.dateValue())
     }
     
-    // Helper to group notifications by date
+    /// Bucket a flat notification list into date-grouped sections for the UI.
+    /// Today/Yesterday/This Week get priority sort order; everything else
+    /// falls into a "MMMM d" formatted section.
     static func groupNotifications(_ notifications: [AppNotification]) -> [NotificationSection] {
         let calendar = Calendar.current
         let now = Date()
@@ -156,7 +175,8 @@ extension AppNotification {
         }
     }
     
-    // Helper to check if date is in current week
+    // True if `date` is in the current calendar week but is not today or
+    // yesterday — those are already handled by their own sections.
     private static func isThisWeek(date: Date, relativeTo now: Date, calendar: Calendar) -> Bool {
         guard let weekStart = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: now)) else {
             return false
